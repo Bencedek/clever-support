@@ -18,9 +18,14 @@ public:
 private slots:
   void open();
   void save();
+  void loadfav();
   void setCutoff();
   void setRange();
   void setSlicing();
+  void setGrid();
+  void setAngleLimit();
+  void toggleCones();
+  void calcTreePoints();
   void startComputation(QString message);
   void midComputation(int percent);
   void endComputation();

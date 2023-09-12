@@ -1,3 +1,6 @@
+#pragma once
+#include "MyViewer.h"
+
 double MyViewer::getCutoffRatio() const {
   return cutoff_ratio;
 }
@@ -21,6 +24,42 @@ double MyViewer::getMeanMax() const {
 
 void MyViewer::setMeanMax(double max) {
   mean_max = max;
+}
+
+double MyViewer::getGridDensity() const {
+    return gridDensity;
+}
+
+void MyViewer::setGridDensity(double d) {
+    gridDensity = d;
+}
+
+double MyViewer::getAngleLimit() const {
+    return angleLimit;
+}
+
+void MyViewer::setAngleLimit(double a) {
+    angleLimit = a;
+}
+
+void MyViewer::toggleCones() {
+    if (showCones && cones.size() != 0) {
+        for (MyTraits::Point* p : cones) {
+            delete p;
+        }
+        cones.clear();
+    }
+    showCones = !showCones;
+}
+
+void MyViewer::refreshCones() {
+    if (cones.size() != 0) {
+        for (MyTraits::Point* p : cones) {
+            delete p;
+        }
+        cones.clear();
+    }
+    generateCones();
 }
 
 const double *MyViewer::getSlicingDir() const {

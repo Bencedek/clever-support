@@ -38,6 +38,10 @@ MyWindow::MyWindow(QApplication *parent) :
   quitAction->setStatusTip(tr("Quit the program"));
   connect(quitAction, SIGNAL(triggered()), this, SLOT(close()));
 
+  auto loadfavAction = new QAction(tr("&Load favorite"), this);
+  loadfavAction->setShortcut(tr("Ctrl+X"));
+  connect(loadfavAction, SIGNAL(triggered()), this, SLOT(loadfav()));
+
   auto cutoffAction = new QAction(tr("Set &cutoff ratio"), this);
   cutoffAction->setStatusTip(tr("Set mean map cutoff ratio"));
   connect(cutoffAction, SIGNAL(triggered()), this, SLOT(setCutoff()));
@@ -47,18 +51,38 @@ MyWindow::MyWindow(QApplication *parent) :
   connect(rangeAction, SIGNAL(triggered()), this, SLOT(setRange()));
 
   auto slicingAction = new QAction(tr("Set &slicing parameters"), this);
-  slicingAction->setStatusTip(tr("Set contouring direction and scaling"));
+  rangeAction->setStatusTip(tr("Set contouring direction and scaling"));
   connect(slicingAction, SIGNAL(triggered()), this, SLOT(setSlicing()));
+
+  auto gridAction = new QAction(tr("Set support &grid density"), this);
+  connect(gridAction, SIGNAL(triggered()), this, SLOT(setGrid()));
+
+  auto angleLimitAction = new QAction(tr("Set overhang &angle limit"), this);
+  connect(angleLimitAction, SIGNAL(triggered()), this, SLOT(setAngleLimit()));
+
+  auto toggleConesAction = new QAction(tr("Toggle cones"), this);
+  connect(toggleConesAction, SIGNAL(triggered()), this, SLOT(toggleCones()));
+
+  auto treePointsAction = new QAction(tr("Calculate support tree points"), this);
+  connect(treePointsAction, SIGNAL(triggered()), this, SLOT(calcTreePoints()));
 
   auto fileMenu = menuBar()->addMenu(tr("&File"));
   fileMenu->addAction(openAction);
   fileMenu->addAction(saveAction);
+  fileMenu->addAction(loadfavAction);
   fileMenu->addAction(quitAction);
 
   auto visMenu = menuBar()->addMenu(tr("&Visualization"));
   visMenu->addAction(cutoffAction);
   visMenu->addAction(rangeAction);
   visMenu->addAction(slicingAction);
+
+  auto supportMenu = menuBar()->addMenu(tr("&Support settings"));
+  supportMenu->addAction(angleLimitAction);
+  supportMenu->addAction(gridAction);
+  supportMenu->addAction(toggleConesAction);
+  supportMenu->addAction(treePointsAction);
+
 }
 
 MyWindow::~MyWindow() {
@@ -97,6 +121,14 @@ void MyWindow::save() {
   if (!viewer->saveBezier(filename.toUtf8().data()))
     QMessageBox::warning(this, tr("Cannot save file"),
                          tr("Could not save file: ") + filename + ".");
+}
+
+void MyWindow::loadfav() {
+    bool ok = viewer->openMesh("E:\\sample-framework-master\\kup.stl");
+
+    if (!ok)
+      QMessageBox::warning(this, tr("Cannot open file"),
+                           tr("Could not open file"));
 }
 
 void MyWindow::setCutoff() {
@@ -224,6 +256,85 @@ void MyWindow::setSlicing() {
     viewer->setSlicingScaling(sb_s->value());
     viewer->update();
   }
+}
+
+void MyWindow::setGrid() {
+    auto dlg = std::make_unique<QDialog>(this);
+    auto *hb1    = new QHBoxLayout,
+         *hb2    = new QHBoxLayout;
+    auto *vb     = new QVBoxLayout;
+    auto *text   = new QLabel(tr("Grid density:"));
+    auto *sb     = new QDoubleSpinBox;
+    auto *cancel = new QPushButton(tr("Cancel"));
+    auto *ok     = new QPushButton(tr("Ok"));
+
+    sb->setDecimals(0);
+    sb->setRange(2, 100);
+    sb->setSingleStep(2);
+    sb->setValue(viewer->getGridDensity());
+    connect(cancel, SIGNAL(pressed()), dlg.get(), SLOT(reject()));
+    connect(ok,     SIGNAL(pressed()), dlg.get(), SLOT(accept()));
+    ok->setDefault(true);
+
+    hb1->addWidget(text);
+    hb1->addWidget(sb);
+    hb2->addWidget(cancel);
+    hb2->addWidget(ok);
+    vb->addLayout(hb1);
+    vb->addLayout(hb2);
+
+    dlg->setWindowTitle(tr("Set support grid density"));
+    dlg->setLayout(vb);
+
+    if(dlg->exec() == QDialog::Accepted) {
+      viewer->setGridDensity(sb->value());
+      viewer->update();
+    }
+}
+
+void MyWindow::setAngleLimit() {
+    auto dlg = std::make_unique<QDialog>(this);
+    auto *hb1    = new QHBoxLayout,
+         *hb2    = new QHBoxLayout;
+    auto *vb     = new QVBoxLayout;
+    auto *text   = new QLabel(tr("Angle overhang limit (deg):"));
+    auto *sb     = new QDoubleSpinBox;
+    auto *cancel = new QPushButton(tr("Cancel"));
+    auto *ok     = new QPushButton(tr("Ok"));
+
+    sb->setDecimals(1);
+    sb->setRange(0, 90);
+    sb->setSingleStep(1);
+    sb->setValue(180 - (viewer->getAngleLimit() * 180 / M_PI));
+    connect(cancel, SIGNAL(pressed()), dlg.get(), SLOT(reject()));
+    connect(ok,     SIGNAL(pressed()), dlg.get(), SLOT(accept()));
+    ok->setDefault(true);
+
+    hb1->addWidget(text);
+    hb1->addWidget(sb);
+    hb2->addWidget(cancel);
+    hb2->addWidget(ok);
+    vb->addLayout(hb1);
+    vb->addLayout(hb2);
+
+    dlg->setWindowTitle(tr("Set angle overhang limit"));
+    dlg->setLayout(vb);
+
+    if(dlg->exec() == QDialog::Accepted) {
+      viewer->setAngleLimit((180 - sb->value()) * M_PI / 180);
+      viewer->update();
+    }
+}
+
+void MyWindow::toggleCones() {
+    viewer->toggleCones();
+    viewer->update();
+}
+
+void MyWindow::calcTreePoints() {
+    viewer->calculateSupportTreePoints();
+    viewer->addTreeGeometry();
+    viewer->update();
 }
 
 void MyWindow::startComputation(QString message) {
