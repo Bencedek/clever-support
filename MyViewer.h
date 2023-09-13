@@ -108,6 +108,24 @@ private:
     Vec position, grabbed_pos, original_pos;
   } axes;
   std::string last_filename;
+
+  // Clever Support
+  double gridDensity;
+  double angleLimit;
+  bool showCones;
+  std::vector<MyTraits::Point*> cones;
+
+  public:
+  inline double getGridDensity() const;
+  inline void setGridDensity(double d);
+  inline double getAngleLimit() const;
+  inline void setAngleLimit(double a);
+  inline void toggleCones();
+  inline void refreshCones();
+  void generateCones();
+  void calculateSupportTreePoints();
+  void addTreeGeometry();
+  double degToRad(double deg);
 };
 
 #include "MyViewer.hpp"

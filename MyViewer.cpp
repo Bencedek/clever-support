@@ -33,7 +33,8 @@ MyViewer::MyViewer(QWidget *parent) :
   mean_min(0.0), mean_max(0.0), cutoff_ratio(0.05),
   show_control_points(true), show_solid(true), show_wireframe(false),
   visualization(Visualization::PLAIN), slicing_dir(0, 0, 1), slicing_scaling(1),
-  last_filename("")
+  last_filename(""),
+  gridDensity(1.0), angleLimit(degToRad(60)), showCones(false)
 {
   setSelectRegionWidth(10);
   setSelectRegionHeight(10);
@@ -815,4 +816,21 @@ QString MyViewer::helpString() const {
                "Feel free to modify and explore!</p>"
                "<p align=\"right\">Peter Salvi</p>");
   return text;
+}
+
+// Clever Support
+void MyViewer::generateCones(){
+
+}
+
+void MyViewer::calculateSupportTreePoints(){
+
+}
+
+void MyViewer::addTreeGeometry(){
+
+}
+
+double MyViewer::degToRad(double deg){
+  return deg * (M_PI/180);
 }
