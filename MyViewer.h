@@ -112,6 +112,7 @@ private:
   // Clever Support
   double gridDensity;
   double angleLimit;
+  bool showWhereSupportNeeded;
   bool showCones;
   std::vector<MyTraits::Point*> cones;
 
@@ -122,6 +123,9 @@ private:
   inline void setAngleLimit(double a);
   inline void toggleCones();
   inline void refreshCones();
+  void colorFaces();
+  void colorEdges();
+  void colorPoints();
   void generateCones();
   void calculateSupportTreePoints();
   void addTreeGeometry();

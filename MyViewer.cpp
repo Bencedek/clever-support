@@ -34,7 +34,7 @@ MyViewer::MyViewer(QWidget *parent) :
   show_control_points(true), show_solid(true), show_wireframe(false),
   visualization(Visualization::PLAIN), slicing_dir(0, 0, 1), slicing_scaling(1),
   last_filename(""),
-  gridDensity(1.0), angleLimit(degToRad(60)), showCones(false)
+    gridDensity(1.0), angleLimit(degToRad(60)), showWhereSupportNeeded(false), showCones(false)
 {
   setSelectRegionWidth(10);
   setSelectRegionHeight(10);
@@ -452,6 +452,12 @@ void MyViewer::draw() {
   glEnable(GL_POLYGON_OFFSET_FILL);
   glPolygonOffset(1, 1);
 
+  if (showWhereSupportNeeded) {
+    if (show_solid) colorFaces();
+    colorEdges();
+    colorPoints();
+  }
+
   if (show_solid || show_wireframe) {
     if (visualization == Visualization::PLAIN)
       glColor3d(1.0, 1.0, 1.0);
@@ -531,6 +537,26 @@ void MyViewer::drawControlNet() const {
   glEnd();
   glPointSize(1.0);
   glEnable(GL_LIGHTING);
+}
+
+void MyViewer::colorFaces() {
+  glColor3d(1.0, 0.0, 0.0);
+  for (auto f : mesh.faces()) {
+    glBegin(GL_POLYGON);
+    for (auto v : mesh.fv_range(f)) {
+      glNormal3dv(mesh.normal(v).data());
+      glVertex3dv(mesh.point(v).data());
+    }
+    glEnd();
+  }
+}
+
+void MyViewer::colorEdges() {
+
+}
+
+void MyViewer::colorPoints(){
+
 }
 
 void MyViewer::drawAxes() const {
@@ -668,6 +694,10 @@ void MyViewer::keyPressEvent(QKeyEvent *e) {
       break;
     case Qt::Key_F:
       fairMesh();
+      update();
+      break;
+    case Qt::Key_X:
+      showWhereSupportNeeded = !showWhereSupportNeeded;
       update();
       break;
     default:
@@ -832,5 +862,5 @@ void MyViewer::addTreeGeometry(){
 }
 
 double MyViewer::degToRad(double deg){
-  return deg * (M_PI/180);
+  return deg * M_PI / 180;
 }

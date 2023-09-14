@@ -54,11 +54,11 @@ MyWindow::MyWindow(QApplication *parent) :
   rangeAction->setStatusTip(tr("Set contouring direction and scaling"));
   connect(slicingAction, SIGNAL(triggered()), this, SLOT(setSlicing()));
 
-  auto gridAction = new QAction(tr("Set support &grid density"), this);
-  connect(gridAction, SIGNAL(triggered()), this, SLOT(setGrid()));
-
   auto angleLimitAction = new QAction(tr("Set overhang &angle limit"), this);
   connect(angleLimitAction, SIGNAL(triggered()), this, SLOT(setAngleLimit()));
+
+  auto gridAction = new QAction(tr("Set support &grid density"), this);
+  connect(gridAction, SIGNAL(triggered()), this, SLOT(setGrid()));
 
   auto toggleConesAction = new QAction(tr("Toggle cones"), this);
   connect(toggleConesAction, SIGNAL(triggered()), this, SLOT(toggleCones()));
@@ -305,7 +305,7 @@ void MyWindow::setAngleLimit() {
     sb->setDecimals(1);
     sb->setRange(0, 90);
     sb->setSingleStep(1);
-    sb->setValue(180 - (viewer->getAngleLimit() * 180 / M_PI));
+    sb->setValue(viewer->getAngleLimit() * 180 / M_PI);
     connect(cancel, SIGNAL(pressed()), dlg.get(), SLOT(reject()));
     connect(ok,     SIGNAL(pressed()), dlg.get(), SLOT(accept()));
     ok->setDefault(true);
@@ -321,7 +321,7 @@ void MyWindow::setAngleLimit() {
     dlg->setLayout(vb);
 
     if(dlg->exec() == QDialog::Accepted) {
-      viewer->setAngleLimit((180 - sb->value()) * M_PI / 180);
+      viewer->setAngleLimit(sb->value() * M_PI / 180);
       viewer->update();
     }
 }
