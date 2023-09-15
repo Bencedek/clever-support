@@ -509,8 +509,7 @@ void MyViewer::draw() {
     }
 
     if (showWhereSupportNeeded) {
-        colorEdges();
-        colorPoints();
+        colorPointsAndEdges();
     }
 
     if (axes.shown)
@@ -543,29 +542,46 @@ void MyViewer::drawControlNet() const {
     glEnable(GL_LIGHTING);
 }
 
-void MyViewer::colorEdges() {
-    for (auto e : mesh.edges()) {
+void MyViewer::colorPointsAndEdges(){
+    std::vector<OpenMesh::SmartVertexHandle> edgeVertices;
 
-    }
-}
-
-void MyViewer::colorPoints(){
     for (auto v : mesh.vertices()) {
         OpenMesh::SmartVertexHandle* lowestOfNeighbors = &v;
+        float lowestZ = mesh.point(v).data()[2];
+        std::vector<OpenMesh::SmartVertexHandle> equals;
         for (auto vn : v.vertices()){
-            float vZ = mesh.point(v).data()[2];
             float vnZ = mesh.point(vn).data()[2];
-            if(vZ - vnZ >= 0){
+            if(vnZ < lowestZ){
+                lowestZ = vnZ;
                 lowestOfNeighbors = &vn;
-                break;
+                equals.clear();
+            } else if (vnZ == lowestZ){
+                equals.push_back(vn);
             }
         }
-        if(lowestOfNeighbors == &v) pointsToSupport.push_back(v);
+        if(lowestOfNeighbors == &v){
+            if(equals.empty())
+                pointsToSupport.push_back(v);
+            else if(equals.size() == 1){
+                edgeVertices.push_back(v);
+                edgeVertices.push_back(equals.back());
+            }
+        }
     }
+    glPolygonMode(GL_FRONT, GL_LINE);
+    glColor3d(0.0, 1.0, 0.0);
+    glLineWidth(2.0);
+    glDisable(GL_LIGHTING);
+    glBegin(GL_LINES);
+    for (auto v : edgeVertices){
+        glVertex3dv(mesh.point(v).data());
+    }
+    glEnd();
+    glLineWidth(1.0);
+
     glPolygonMode(GL_FRONT, GL_POINT);
     glColor3d(1.0, 0.0, 1.0);
     glPointSize(5.0);
-    glDisable(GL_LIGHTING);
     glBegin(GL_POINTS);
     for (auto v : pointsToSupport){
         glVertex3dv(mesh.point(v).data());

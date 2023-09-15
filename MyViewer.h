@@ -124,9 +124,7 @@ public:
     inline void setAngleLimit(double a);
     inline void toggleCones();
     inline void refreshCones();
-    void colorFaces();
-    void colorEdges();
-    void colorPoints();
+    void colorPointsAndEdges();
     void generateCones();
     void calculateSupportTreePoints();
     void addTreeGeometry();
