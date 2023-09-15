@@ -445,19 +445,13 @@ void MyViewer::init() {
 }
 
 void MyViewer::draw() {
+    pointsToSupport.clear();
     if (model_type == ModelType::BEZIER_SURFACE && show_control_points)
         drawControlNet();
 
     glPolygonMode(GL_FRONT_AND_BACK, !show_solid && show_wireframe ? GL_LINE : GL_FILL);
     glEnable(GL_POLYGON_OFFSET_FILL);
     glPolygonOffset(1, 1);
-
-    if (showWhereSupportNeeded) {
-        pointsToSupport.clear();
-        if (show_solid) colorFaces();
-        colorEdges();
-        colorPoints();
-    }
 
     if (show_solid || show_wireframe) {
         if (visualization == Visualization::PLAIN)
@@ -476,6 +470,10 @@ void MyViewer::draw() {
             glEnable(GL_TEXTURE_1D);
         }
         for (auto f : mesh.faces()) {
+            if (showWhereSupportNeeded){
+                if(angleOfVectors(Vec(mesh.normal(f).data()), Vec(0,0,1)) - degToRad(90.0) >= angleLimit) glColor3d(1.0, 0.0, 0.0);
+                else glColor3d(1.0, 1.0, 1.0);
+            }
             glBegin(GL_POLYGON);
             for (auto v : mesh.fv_range(f)) {
                 if (visualization == Visualization::MEAN)
@@ -510,6 +508,11 @@ void MyViewer::draw() {
         glEnable(GL_LIGHTING);
     }
 
+    if (showWhereSupportNeeded) {
+        colorEdges();
+        colorPoints();
+    }
+
     if (axes.shown)
         drawAxes();
 }
@@ -540,20 +543,10 @@ void MyViewer::drawControlNet() const {
     glEnable(GL_LIGHTING);
 }
 
-void MyViewer::colorFaces() {
-    glColor3d(1.0, 0.0, 0.0);
-    for (auto f : mesh.faces()) {
-        glBegin(GL_POLYGON);
-        for (auto v : mesh.fv_range(f)) {
-            glNormal3dv(mesh.normal(v).data());
-            glVertex3dv(mesh.point(v).data());
-        }
-        glEnd();
-    }
-}
-
 void MyViewer::colorEdges() {
+    for (auto e : mesh.edges()) {
 
+    }
 }
 
 void MyViewer::colorPoints(){
@@ -886,4 +879,8 @@ void MyViewer::addTreeGeometry(){
 
 double MyViewer::degToRad(double deg){
     return deg * M_PI / 180;
+}
+
+double MyViewer::angleOfVectors(Vec v1, Vec v2){
+    return acos(v1 * v2 / (v1.norm() * v2.norm()));
 }

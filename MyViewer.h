@@ -131,6 +131,7 @@ public:
     void calculateSupportTreePoints();
     void addTreeGeometry();
     double degToRad(double deg);
+    double angleOfVectors(Vec v1, Vec v2);
 };
 
 #include "MyViewer.hpp"
