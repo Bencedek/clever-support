@@ -115,6 +115,8 @@ private:
     bool showWhereSupportNeeded;
     bool showCones;
     std::vector<OpenMesh::SmartVertexHandle> pointsToSupport;
+    std::vector<OpenMesh::SmartFaceHandle> facesToSupport;
+    std::vector<OpenMesh::SmartEdgeHandle> edgesToSupport;
     std::vector<MyTraits::Point*> cones;
 
 public:

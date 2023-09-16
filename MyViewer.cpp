@@ -446,6 +446,9 @@ void MyViewer::init() {
 
 void MyViewer::draw() {
     pointsToSupport.clear();
+    facesToSupport.clear();
+    edgesToSupport.clear();
+
     if (model_type == ModelType::BEZIER_SURFACE && show_control_points)
         drawControlNet();
 
@@ -471,7 +474,10 @@ void MyViewer::draw() {
         }
         for (auto f : mesh.faces()) {
             if (showWhereSupportNeeded){
-                if(angleOfVectors(Vec(mesh.normal(f).data()), Vec(0,0,1)) - degToRad(90.0) >= angleLimit) glColor3d(1.0, 0.0, 0.0);
+                if(angleOfVectors(Vec(mesh.normal(f).data()), Vec(0,0,1)) - degToRad(90.0) >= angleLimit){
+                    glColor3d(1.0, 0.0, 0.0);
+                    facesToSupport.push_back(f);
+                }
                 else glColor3d(1.0, 1.0, 1.0);
             }
             glBegin(GL_POLYGON);
@@ -543,8 +549,6 @@ void MyViewer::drawControlNet() const {
 }
 
 void MyViewer::colorPointsAndEdges(){
-    std::vector<OpenMesh::SmartVertexHandle> edgeVertices;
-
     for (auto v : mesh.vertices()) {
         OpenMesh::SmartVertexHandle* lowestOfNeighbors = &v;
         float lowestZ = mesh.point(v).data()[2];
@@ -563,8 +567,11 @@ void MyViewer::colorPointsAndEdges(){
             if(equals.empty())
                 pointsToSupport.push_back(v);
             else if(equals.size() == 1){
-                edgeVertices.push_back(v);
-                edgeVertices.push_back(equals.back());
+                for (auto e : mesh.edges()){
+                    if((e.v0() == v && e.v1() == equals.back()) || (e.v1() == v && e.v0() == equals.back())){
+                        edgesToSupport.push_back(e);
+                    }
+                }
             }
         }
     }
@@ -573,8 +580,9 @@ void MyViewer::colorPointsAndEdges(){
     glLineWidth(2.0);
     glDisable(GL_LIGHTING);
     glBegin(GL_LINES);
-    for (auto v : edgeVertices){
-        glVertex3dv(mesh.point(v).data());
+    for (auto e : edgesToSupport){
+        glVertex3dv(mesh.point(e.v0()).data());
+        glVertex3dv(mesh.point(e.v1()).data());
     }
     glEnd();
     glLineWidth(1.0);
