@@ -34,7 +34,7 @@ MyViewer::MyViewer(QWidget *parent) :
     show_control_points(true), show_solid(true), show_wireframe(false),
     visualization(Visualization::PLAIN), slicing_dir(0, 0, 1), slicing_scaling(1),
     last_filename(""),
-    gridDensity(1.0), angleLimit(degToRad(60)), showWhereSupportNeeded(false), showCones(false)
+    gridDensity(1.0), angleLimit(degToRad(60)), showWhereSupportNeeded(false), showAllPoints(false), showCones(false)
 {
     setSelectRegionWidth(10);
     setSelectRegionHeight(10);
@@ -445,7 +445,8 @@ void MyViewer::init() {
 }
 
 void MyViewer::draw() {
-    pointsToSupport.clear();
+    // for Clever Support
+    verticesToSupport.clear();
     facesToSupport.clear();
     edgesToSupport.clear();
 
@@ -473,6 +474,7 @@ void MyViewer::draw() {
             glEnable(GL_TEXTURE_1D);
         }
         for (auto f : mesh.faces()) {
+            // for Clever Support
             if (showWhereSupportNeeded){
                 if(angleOfVectors(Vec(mesh.normal(f).data()), Vec(0,0,1)) - degToRad(90.0) >= angleLimit){
                     glColor3d(1.0, 0.0, 0.0);
@@ -514,6 +516,7 @@ void MyViewer::draw() {
         glEnable(GL_LIGHTING);
     }
 
+    // for Clever Support
     if (showWhereSupportNeeded) {
         colorPointsAndEdges();
     }
@@ -543,59 +546,6 @@ void MyViewer::drawControlNet() const {
     glBegin(GL_POINTS);
     for (const auto &p : control_points)
         glVertex3dv(p);
-    glEnd();
-    glPointSize(1.0);
-    glEnable(GL_LIGHTING);
-}
-
-void MyViewer::colorPointsAndEdges(){
-    for (auto v : mesh.vertices()) {
-        OpenMesh::SmartVertexHandle* lowestOfNeighbors = &v;
-        float lowestZ = mesh.point(v).data()[2];
-        std::vector<OpenMesh::SmartVertexHandle> equals;
-        for (auto vn : v.vertices()){
-            float vnZ = mesh.point(vn).data()[2];
-            if(vnZ < lowestZ){
-                lowestZ = vnZ;
-                lowestOfNeighbors = &vn;
-                equals.clear();
-            } else if (vnZ == lowestZ){
-                equals.push_back(vn);
-            }
-        }
-        if(lowestOfNeighbors == &v){
-            if(equals.empty())
-                pointsToSupport.push_back(v);
-            else if(equals.size() == 1){
-                for (auto e : mesh.edges()){
-                    if((e.v0() == v && e.v1() == equals.back()) || (e.v1() == v && e.v0() == equals.back())){
-                        if(std::find(edgesToSupport.begin(), edgesToSupport.end(), e) == edgesToSupport.end()) {
-                            edgesToSupport.push_back(e);
-                        }
-                    }
-                }
-            }
-        }
-    }
-    glPolygonMode(GL_FRONT, GL_LINE);
-    glColor3d(0.0, 1.0, 0.0);
-    glLineWidth(2.0);
-    glDisable(GL_LIGHTING);
-    glBegin(GL_LINES);
-    for (auto e : edgesToSupport){
-        glVertex3dv(mesh.point(e.v0()).data());
-        glVertex3dv(mesh.point(e.v1()).data());
-    }
-    glEnd();
-    glLineWidth(1.0);
-
-    glPolygonMode(GL_FRONT, GL_POINT);
-    glColor3d(1.0, 0.0, 1.0);
-    glPointSize(5.0);
-    glBegin(GL_POINTS);
-    for (auto v : pointsToSupport){
-        glVertex3dv(mesh.point(v).data());
-    }
     glEnd();
     glPointSize(1.0);
     glEnable(GL_LIGHTING);
@@ -759,7 +709,15 @@ void MyViewer::keyPressEvent(QKeyEvent *e) {
             slicing_dir = Vector(static_cast<double *>(camera()->viewDirection()));
             update();
             break;
-        } else
+        }
+    else if(e->modifiers() == Qt::AltModifier)
+        switch (e->key()) {
+        case Qt::Key_X:
+            showAllPoints = !showAllPoints;
+            update();
+            break;
+        }
+    else
         QGLViewer::keyPressEvent(e);
 }
 
@@ -891,6 +849,88 @@ QString MyViewer::helpString() const {
 }
 
 // Clever Support
+
+void MyViewer::colorPointsAndEdges(){
+    for (auto v : mesh.vertices()) {
+        OpenMesh::SmartVertexHandle* lowestOfNeighbors = &v;
+        float lowestZ = mesh.point(v).data()[2];
+        std::vector<OpenMesh::SmartVertexHandle> equals;
+        for (auto vn : v.vertices()){
+            float vnZ = mesh.point(vn).data()[2];
+            if(vnZ < lowestZ){
+                lowestZ = vnZ;
+                lowestOfNeighbors = &vn;
+                equals.clear();
+            } else if (vnZ == lowestZ){
+                equals.push_back(vn);
+            }
+        }
+        if(lowestOfNeighbors == &v){
+            if(equals.empty())
+                verticesToSupport.push_back(v);
+            else if(equals.size() == 1){
+                for (auto e : mesh.edges()){
+                    if((e.v0() == v && e.v1() == equals.back()) || (e.v1() == v && e.v0() == equals.back())){
+                        if(std::find(edgesToSupport.begin(), edgesToSupport.end(), e) == edgesToSupport.end()) {
+                            edgesToSupport.push_back(e);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    glPolygonMode(GL_FRONT, GL_LINE);
+    glColor3d(0.0, 1.0, 0.0);
+    glLineWidth(2.0);
+    glDisable(GL_LIGHTING);
+    glBegin(GL_LINES);
+    for (auto e : edgesToSupport){
+        glVertex3dv(mesh.point(e.v0()).data());
+        glVertex3dv(mesh.point(e.v1()).data());
+    }
+    glEnd();
+    glLineWidth(1.0);
+
+    if(showAllPoints) {
+        showAllPointsToSupport();
+    }
+    else {
+        glPolygonMode(GL_FRONT, GL_POINT);
+        glColor3d(1.0, 0.0, 1.0);
+        glPointSize(5.0);
+        glBegin(GL_POINTS);
+        for (auto v : verticesToSupport){
+            glVertex3dv(mesh.point(v).data());
+        }
+        glEnd();
+        glPointSize(1.0);
+        glEnable(GL_LIGHTING);
+    }
+}
+
+void MyViewer::showAllPointsToSupport(){
+    for (auto v: verticesToSupport){
+        pointsToSupport.push_back(vertexToVec(v));
+    }
+    for (auto e : edgesToSupport){
+
+    }
+    for (auto f : facesToSupport){
+
+    }
+
+    glPolygonMode(GL_FRONT, GL_POINT);
+    glColor3d(1.0, 0.0, 0.0);
+    glPointSize(5.0);
+    glBegin(GL_POINTS);
+    for (auto p : pointsToSupport){
+        glVertex3dv(p);
+    }
+    glEnd();
+    glPointSize(1.0);
+    glEnable(GL_LIGHTING);
+}
+
 void MyViewer::generateCones(){
 
 }
@@ -909,4 +949,9 @@ double MyViewer::degToRad(double deg){
 
 double MyViewer::angleOfVectors(Vec v1, Vec v2){
     return acos(v1 * v2 / (v1.norm() * v2.norm()));
+}
+
+Vec MyViewer::vertexToVec(OpenMesh::SmartVertexHandle v){
+    auto vtxdata = mesh.point(v).data();
+    return Vec(vtxdata[0], vtxdata[1], vtxdata[2]);
 }

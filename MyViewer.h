@@ -113,10 +113,12 @@ private:
     double gridDensity;
     double angleLimit;
     bool showWhereSupportNeeded;
+    bool showAllPoints;
     bool showCones;
-    std::vector<OpenMesh::SmartVertexHandle> pointsToSupport;
+    std::vector<OpenMesh::SmartVertexHandle> verticesToSupport;
     std::vector<OpenMesh::SmartFaceHandle> facesToSupport;
     std::vector<OpenMesh::SmartEdgeHandle> edgesToSupport;
+    std::vector<Vec> pointsToSupport;
     std::vector<MyTraits::Point*> cones;
 
 public:
@@ -127,11 +129,13 @@ public:
     inline void toggleCones();
     inline void refreshCones();
     void colorPointsAndEdges();
+    void showAllPointsToSupport();
     void generateCones();
     void calculateSupportTreePoints();
     void addTreeGeometry();
     double degToRad(double deg);
     double angleOfVectors(Vec v1, Vec v2);
+    Vec vertexToVec(OpenMesh::SmartVertexHandle v);
 };
 
 #include "MyViewer.hpp"
