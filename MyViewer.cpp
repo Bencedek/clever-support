@@ -569,7 +569,9 @@ void MyViewer::colorPointsAndEdges(){
             else if(equals.size() == 1){
                 for (auto e : mesh.edges()){
                     if((e.v0() == v && e.v1() == equals.back()) || (e.v1() == v && e.v0() == equals.back())){
-                        edgesToSupport.push_back(e);
+                        if(std::find(edgesToSupport.begin(), edgesToSupport.end(), e) == edgesToSupport.end()) {
+                            edgesToSupport.push_back(e);
+                        }
                     }
                 }
             }
