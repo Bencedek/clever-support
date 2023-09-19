@@ -36,5 +36,5 @@ private:
     MyViewer *viewer;
     QProgressBar *progress;
     QString last_directory;
-    QString favPath = "C:\\clever-support\\build\\test2.stl";
+    QString favPath = "C:\\clever-support\\build\\gula.stl";
 };

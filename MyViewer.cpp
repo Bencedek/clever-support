@@ -34,7 +34,7 @@ MyViewer::MyViewer(QWidget *parent) :
     show_control_points(true), show_solid(true), show_wireframe(false),
     visualization(Visualization::PLAIN), slicing_dir(0, 0, 1), slicing_scaling(1),
     last_filename(""),
-    gridDensity(1.0), angleLimit(degToRad(60)), showWhereSupportNeeded(false), showAllPoints(false), showCones(false)
+    gridDensity(4.0), angleLimit(degToRad(60)), showWhereSupportNeeded(false), showAllPoints(false), showCones(false)
 {
     setSelectRegionWidth(10);
     setSelectRegionHeight(10);
@@ -519,6 +519,9 @@ void MyViewer::draw() {
     // for Clever Support
     if (showWhereSupportNeeded) {
         colorPointsAndEdges();
+        if (toggleCones) {
+            generateCones();
+        }
     }
 
     if (axes.shown)
@@ -909,18 +912,20 @@ void MyViewer::colorPointsAndEdges(){
 }
 
 void MyViewer::showAllPointsToSupport(){
+    pointsToSupport.clear();
+
     for (auto v: verticesToSupport){
         pointsToSupport.push_back(vertexToVec(v));
     }
     for (auto e : edgesToSupport){
-
+        generateEdgePoints(vertexToVec(e.v0()), vertexToVec(e.v1()), gridDensity);
     }
     for (auto f : facesToSupport){
-
+        generateFacePoints(f);
     }
 
     glPolygonMode(GL_FRONT, GL_POINT);
-    glColor3d(1.0, 0.0, 0.0);
+    glColor3d(1.0, 0.0, 1.0);
     glPointSize(5.0);
     glBegin(GL_POINTS);
     for (auto p : pointsToSupport){
@@ -931,8 +936,37 @@ void MyViewer::showAllPointsToSupport(){
     glEnable(GL_LIGHTING);
 }
 
-void MyViewer::generateCones(){
+void MyViewer::generateEdgePoints(Vec A, Vec B, int density){
+    Vec v(A - B);
 
+    for(size_t i = 0; i < density; ++i){
+        pointsToSupport.push_back(B + i * (v / (density - 1)));
+    }
+}
+
+void MyViewer::generateFacePoints(OpenMesh::SmartFaceHandle f){
+    std::vector<Vec> vertices;
+    for (auto v : f.vertices()){
+        vertices.push_back(vertexToVec(v));
+    }
+    Vec A(vertices[0]);
+    Vec B(vertices[1]);
+    Vec C(vertices[2]);
+
+    Vec v1 = A - B;
+    Vec v2 = C - B;
+
+    for(int i = gridDensity; i > 1; --i){
+        double delta = (i-1) / (gridDensity-1);
+        generateEdgePoints(B + v1 * delta, B + v2 * delta, i);
+    }
+    pointsToSupport.push_back(B);
+}
+
+void MyViewer::generateCones(){
+    for (auto p : pointsToSupport) {
+
+    }
 }
 
 void MyViewer::calculateSupportTreePoints(){

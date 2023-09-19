@@ -130,6 +130,8 @@ public:
     inline void refreshCones();
     void colorPointsAndEdges();
     void showAllPointsToSupport();
+    void generateEdgePoints(Vec A, Vec B, int density);
+    void generateFacePoints(OpenMesh::SmartFaceHandle f);
     void generateCones();
     void calculateSupportTreePoints();
     void addTreeGeometry();
