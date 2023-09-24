@@ -119,7 +119,6 @@ private:
     std::vector<OpenMesh::SmartFaceHandle> facesToSupport;
     std::vector<OpenMesh::SmartEdgeHandle> edgesToSupport;
     std::vector<Vec> pointsToSupport;
-    std::vector<MyTraits::Point*> cones;
 
 public:
     inline double getGridDensity() const;
@@ -127,7 +126,6 @@ public:
     inline double getAngleLimit() const;
     inline void setAngleLimit(double a);
     inline void toggleCones();
-    inline void refreshCones();
     void colorPointsAndEdges();
     void showAllPointsToSupport();
     void generateEdgePoints(Vec A, Vec B, int density);
@@ -138,6 +136,7 @@ public:
     double degToRad(double deg);
     double angleOfVectors(Vec v1, Vec v2);
     Vec vertexToVec(OpenMesh::SmartVertexHandle v);
+    Vec rotateVecAroundVec(Vec v, Vec pivot, double angle);
 };
 
 #include "MyViewer.hpp"

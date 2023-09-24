@@ -43,23 +43,7 @@ void MyViewer::setAngleLimit(double a) {
 }
 
 void MyViewer::toggleCones() {
-    if (showCones && cones.size() != 0) {
-        for (MyTraits::Point* p : cones) {
-            delete p;
-        }
-        cones.clear();
-    }
     showCones = !showCones;
-}
-
-void MyViewer::refreshCones() {
-    if (cones.size() != 0) {
-        for (MyTraits::Point* p : cones) {
-            delete p;
-        }
-        cones.clear();
-    }
-    generateCones();
 }
 
 const double *MyViewer::getSlicingDir() const {

@@ -519,7 +519,7 @@ void MyViewer::draw() {
     // for Clever Support
     if (showWhereSupportNeeded) {
         colorPointsAndEdges();
-        if (toggleCones) {
+        if (showCones) {
             generateCones();
         }
     }
@@ -965,7 +965,23 @@ void MyViewer::generateFacePoints(OpenMesh::SmartFaceHandle f){
 
 void MyViewer::generateCones(){
     for (auto p : pointsToSupport) {
-
+        Vec firstEdge(Vec(0.0, 0.0, p.z).norm() * cos(90-angleLimit), p.y, 0.0);
+        std::vector<Vec> coneSides;
+        for (int i = 0; i < 50; ++i) {
+            double pivotAngle = i * 2 * M_PI / 50;
+            Vec pivot = Vec(0, 0, 1);
+            coneSides.push_back(Vec(firstEdge * cos(pivotAngle) + (pivot ^ firstEdge) * sin(pivotAngle)));
+        }
+        glDisable(GL_LIGHTING);
+        glPolygonMode(GL_FRONT, GL_LINES);
+        glColor3d(1.0, 1.0, 0.0);
+        glBegin(GL_LINES);
+        for (auto s : coneSides){
+            glVertex3dv(p);
+            glVertex3dv(s);
+        }
+        glEnd();
+        glEnable(GL_LIGHTING);
     }
 }
 
@@ -988,4 +1004,9 @@ double MyViewer::angleOfVectors(Vec v1, Vec v2){
 Vec MyViewer::vertexToVec(OpenMesh::SmartVertexHandle v){
     auto vtxdata = mesh.point(v).data();
     return Vec(vtxdata[0], vtxdata[1], vtxdata[2]);
+}
+
+Vec MyViewer::rotateVecAroundVec(Vec v, Vec pivot, double angle){
+
+    return v;
 }
