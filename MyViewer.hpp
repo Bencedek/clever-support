@@ -46,6 +46,10 @@ void MyViewer::toggleCones() {
     showCones = !showCones;
 }
 
+void MyViewer::toggleTree() {
+    showTree = !showTree;
+}
+
 const double *MyViewer::getSlicingDir() const {
     return slicing_dir.data();
 }
