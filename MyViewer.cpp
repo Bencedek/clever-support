@@ -965,18 +965,16 @@ void MyViewer::generateFacePoints(OpenMesh::SmartFaceHandle f){
 
 void MyViewer::generateCones(){
     for (auto p : pointsToSupport) {
-        Vec firstEdge(Vec(0.0, 0.0, p.z).norm() * cos(90-angleLimit), p.y, 0.0);
-        std::vector<Vec> coneSides;
+        std::vector<Vec> coneBasePoints;
         for (int i = 0; i < 50; ++i) {
             double pivotAngle = i * 2 * M_PI / 50;
-            Vec pivot = Vec(0, 0, 1);
-            coneSides.push_back(Vec(firstEdge * cos(pivotAngle) + (pivot ^ firstEdge) * sin(pivotAngle)));
+            coneBasePoints.push_back(Vec(p.x + cos(pivotAngle) * tan(angleLimit) * p.z, p.y + sin(pivotAngle) * tan(angleLimit) * p.z, 0.0));
         }
         glDisable(GL_LIGHTING);
         glPolygonMode(GL_FRONT, GL_LINES);
         glColor3d(1.0, 1.0, 0.0);
         glBegin(GL_LINES);
-        for (auto s : coneSides){
+        for (auto s : coneBasePoints){
             glVertex3dv(p);
             glVertex3dv(s);
         }

@@ -28,10 +28,10 @@ RESOURCES = sample-framework.qrc
 
 win32 {
     # Replace this variable to the install path of the OpenMesh lib install
-    OPENMESH_INSTALL_PATH = 'C:\Program Files\OpenMesh 9.0'
+    OPENMESH_INSTALL_PATH = 'E:\Program Files\OpenMesh 9.0'
 
     # Replace this variable to the install path of libQGLViewer
-    LIBQGLVIEWER_INSTALL_PATH = 'C:\libQGLViewer'
+    LIBQGLVIEWER_INSTALL_PATH = 'E:\libQGLViewer-2.7.2'
 
     # If your OpenMesh source is separate from the lib install replace this variable
     OPENMESH_SRC_INSTALL_PATH = $$OPENMESH_INSTALL_PATH\include\
