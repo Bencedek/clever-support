@@ -34,7 +34,7 @@ MyViewer::MyViewer(QWidget *parent) :
     show_control_points(true), show_solid(true), show_wireframe(false),
     visualization(Visualization::PLAIN), slicing_dir(0, 0, 1), slicing_scaling(1),
     last_filename(""),
-    gridDensity(4.0), angleLimit(degToRad(60)), showWhereSupportNeeded(false), showAllPoints(false), showCones(false)
+    gridDensity(4.0), angleLimit(degToRad(60)), showWhereSupportNeeded(false), showAllPoints(false), showCones(false), showTree(false)
 {
     setSelectRegionWidth(10);
     setSelectRegionHeight(10);
@@ -522,7 +522,11 @@ void MyViewer::draw() {
         if (showCones) {
             generateCones();
         }
+        if(showTree){
+            drawTree();
+        }
     }
+
 
     if (axes.shown)
         drawAxes();
@@ -914,15 +918,7 @@ void MyViewer::colorPointsAndEdges(){
 void MyViewer::showAllPointsToSupport(){
     pointsToSupport.clear();
 
-    for (auto v: verticesToSupport){
-        pointsToSupport.push_back(vertexToVec(v));
-    }
-    for (auto e : edgesToSupport){
-        generateEdgePoints(vertexToVec(e.v0()), vertexToVec(e.v1()), gridDensity);
-    }
-    for (auto f : facesToSupport){
-        generateFacePoints(f);
-    }
+    calculatePointsToSupport();
 
     glPolygonMode(GL_FRONT, GL_POINT);
     glColor3d(1.0, 0.0, 1.0);
@@ -934,6 +930,18 @@ void MyViewer::showAllPointsToSupport(){
     glEnd();
     glPointSize(1.0);
     glEnable(GL_LIGHTING);
+}
+
+void MyViewer::calculatePointsToSupport(){
+    for (auto v: verticesToSupport){
+        pointsToSupport.push_back(vertexToVec(v));
+    }
+    for (auto e : edgesToSupport){
+        generateEdgePoints(vertexToVec(e.v0()), vertexToVec(e.v1()), gridDensity);
+    }
+    for (auto f : facesToSupport){
+        generateFacePoints(f);
+    }
 }
 
 void MyViewer::generateEdgePoints(Vec A, Vec B, int density){
@@ -983,8 +991,65 @@ void MyViewer::generateCones(){
     }
 }
 
-void MyViewer::calculateSupportTreePoints(){
+void MyViewer::drawTree(){
+    calculateSupportTreePoints();
+    glDisable(GL_LIGHTING);
+    glPolygonMode(GL_FRONT, GL_LINES);
+    glColor3d(0.0, 1.0, 1.0);
+    glBegin(GL_LINES);
+    for (auto tp : treePoints){
+        glVertex3dv(tp.location);
+        glVertex3dv(tp.nextPoint);
+    }
+    glEnd();
+    glEnable(GL_LIGHTING);
+}
 
+void MyViewer::calculateSupportTreePoints(){
+    pointsToSupport.clear();
+    treePoints.clear();
+    calculatePointsToSupport();
+    std::sort(pointsToSupport.begin(), pointsToSupport.end(), [](Vec a, Vec b) {return a.z > b.z;});
+
+    for (auto p : pointsToSupport){
+        Vec closestFromPoints = getClosestPointFromPoints();
+        //Vec closestOnModel = getClosestPointOnModel(); -> will be implemented later
+        Vec closestOnBase (p.x, p.y, 0.0);
+
+        if (pointsToSupport.size() == 1 ||
+            (p - closestOnBase).norm() <= (p - closestFromPoints).norm() /*&& (p - closestOnBase).norm() <= (p - closestOnModel).norm() */) {
+            treePoints.push_back(TreePoint(p, Vec(p.x, p.y, 0.0)));
+        } else { //if (p - closestFromPoints).norm() <= (p - closestOnModel).norm() && (p - closestFromPoints).norm() <= (p - closestOnBase).norm())
+            Vec common = getCommonSupportPoint(p, closestFromPoints);
+            treePoints.push_back(TreePoint(p, common));
+            treePoints.push_back(TreePoint(closestFromPoints, common));
+            pointsToSupport.erase(std::find(pointsToSupport.begin(), pointsToSupport.end(), closestFromPoints));
+            pointsToSupport.push_back(common);
+        } /* else {
+            treePoints.push_back(TreePoint(p, closestOnModel));
+        }*/
+        pointsToSupport.pop_front();
+    }
+}
+
+Vec MyViewer::getClosestPointFromPoints(){
+    if(pointsToSupport.size() <= 1)
+        return pointsToSupport.front();
+    else {
+        Vec closest = pointsToSupport[1];
+        for(size_t i = 1; i < pointsToSupport.size(); ++i){
+            if((pointsToSupport[i] - pointsToSupport[0]).norm() < (closest - pointsToSupport[0]).norm())
+                closest = pointsToSupport[i];
+        }
+        return closest;
+    }
+}
+
+Vec MyViewer::getCommonSupportPoint(Vec p1, Vec p2){
+    Vec normal = ((p2 - p1).unit() ^ Vec(0.0, 0.0, 1.0)).unit();
+    Vec fromp1 = rotateAround(Vec(p1.x, p1.y, 0.0) - p1, normal, angleLimit);
+    Vec fromp2 = rotateAround(Vec(p2.x, p2.y, 0.0) - p2, normal, -angleLimit);
+    return intersectLines(p1, fromp1, p2, fromp2);
 }
 
 void MyViewer::addTreeGeometry(){
@@ -1004,7 +1069,8 @@ Vec MyViewer::vertexToVec(OpenMesh::SmartVertexHandle v){
     return Vec(vtxdata[0], vtxdata[1], vtxdata[2]);
 }
 
-Vec MyViewer::rotateVecAroundVec(Vec v, Vec pivot, double angle){
+Vec MyViewer::rotateAround(Vec v, Vec pivot, double angle){
+    return v * cos(angle) + (pivot ^ v) * sin(angle) + pivot * (pivot * v) * (1 - cos(angle)); // Rodrigues' rotation formula
 
-    return v;
+
 }

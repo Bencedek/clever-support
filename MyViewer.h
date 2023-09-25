@@ -2,6 +2,7 @@
 #pragma once
 
 #include <string>
+#include <deque>
 
 #include <QGLViewer/qglviewer.h>
 #include <OpenMesh/Core/Mesh/TriMesh_ArrayKernelT.hh>
@@ -110,15 +111,25 @@ private:
     std::string last_filename;
 
     // Clever Support
+    struct TreePoint {
+        Vec location;
+        Vec nextPoint;
+
+        TreePoint(Vec v): location(v){}
+        TreePoint(Vec v, Vec np): location(v), nextPoint(np){}
+    };
+
     double gridDensity;
     double angleLimit;
     bool showWhereSupportNeeded;
     bool showAllPoints;
     bool showCones;
+    bool showTree;
     std::vector<OpenMesh::SmartVertexHandle> verticesToSupport;
     std::vector<OpenMesh::SmartFaceHandle> facesToSupport;
     std::vector<OpenMesh::SmartEdgeHandle> edgesToSupport;
-    std::vector<Vec> pointsToSupport;
+    std::deque<Vec> pointsToSupport;
+    std::vector<TreePoint> treePoints;
 
 public:
     inline double getGridDensity() const;
@@ -126,17 +137,22 @@ public:
     inline double getAngleLimit() const;
     inline void setAngleLimit(double a);
     inline void toggleCones();
+    inline void toggleTree();
     void colorPointsAndEdges();
     void showAllPointsToSupport();
+    void calculatePointsToSupport();
     void generateEdgePoints(Vec A, Vec B, int density);
     void generateFacePoints(OpenMesh::SmartFaceHandle f);
     void generateCones();
+    void drawTree();
     void calculateSupportTreePoints();
+    Vec getClosestPointFromPoints();
+    Vec getCommonSupportPoint(Vec p1, Vec p2);
     void addTreeGeometry();
     double degToRad(double deg);
     double angleOfVectors(Vec v1, Vec v2);
     Vec vertexToVec(OpenMesh::SmartVertexHandle v);
-    Vec rotateVecAroundVec(Vec v, Vec pivot, double angle);
+    Vec rotateAround(Vec v, Vec pivot, double angle /*radians*/);
 };
 
 #include "MyViewer.hpp"
