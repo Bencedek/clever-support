@@ -995,6 +995,7 @@ void MyViewer::drawTree(){
     calculateSupportTreePoints();
     glDisable(GL_LIGHTING);
     glPolygonMode(GL_FRONT, GL_LINES);
+    glLineWidth(2.0);
     glColor3d(0.0, 1.0, 1.0);
     glBegin(GL_LINES);
     for (auto tp : treePoints){
@@ -1002,6 +1003,7 @@ void MyViewer::drawTree(){
         glVertex3dv(tp.nextPoint);
     }
     glEnd();
+    glLineWidth(1.0);
     glEnable(GL_LIGHTING);
 }
 
@@ -1010,25 +1012,32 @@ void MyViewer::calculateSupportTreePoints(){
     treePoints.clear();
     calculatePointsToSupport();
     std::sort(pointsToSupport.begin(), pointsToSupport.end(), [](Vec a, Vec b) {return a.z > b.z;});
+    pointsToSupport.erase(std::unique( pointsToSupport.begin(), pointsToSupport.end() ), pointsToSupport.end());
 
-    for (auto p : pointsToSupport){
+    while(!pointsToSupport.empty()){
+        Vec p = pointsToSupport.front();
         Vec closestFromPoints = getClosestPointFromPoints();
         //Vec closestOnModel = getClosestPointOnModel(); -> will be implemented later
         Vec closestOnBase (p.x, p.y, 0.0);
 
-        if (pointsToSupport.size() == 1 ||
-            (p - closestOnBase).norm() <= (p - closestFromPoints).norm() /*&& (p - closestOnBase).norm() <= (p - closestOnModel).norm() */) {
-            treePoints.push_back(TreePoint(p, Vec(p.x, p.y, 0.0)));
-        } else { //if (p - closestFromPoints).norm() <= (p - closestOnModel).norm() && (p - closestFromPoints).norm() <= (p - closestOnBase).norm())
+        if (pointsToSupport.size() > 1
+            && (p - closestFromPoints).norm() <= (p - closestOnBase).norm()
+            /*&& (p - closestFromPoints).norm() <= (p - closestOnModel).norm() */
+            && p!= closestFromPoints)
+        {
             Vec common = getCommonSupportPoint(p, closestFromPoints);
             treePoints.push_back(TreePoint(p, common));
             treePoints.push_back(TreePoint(closestFromPoints, common));
             pointsToSupport.erase(std::find(pointsToSupport.begin(), pointsToSupport.end(), closestFromPoints));
             pointsToSupport.push_back(common);
-        } /* else {
+        } /*else if ((p - closestOnModel).norm() <= (p - closestFromPoints).norm()
+            && (p - closestOnModel).norm() <= (p - closestOnBase).norm())
             treePoints.push_back(TreePoint(p, closestOnModel));
         }*/
-        pointsToSupport.pop_front();
+        else {
+            treePoints.push_back(TreePoint(p, Vec(p.x, p.y, 0.0)));
+        }
+        pointsToSupport.pop_back();
     }
 }
 
@@ -1038,9 +1047,12 @@ Vec MyViewer::getClosestPointFromPoints(){
     else {
         Vec closest = pointsToSupport[1];
         for(size_t i = 1; i < pointsToSupport.size(); ++i){
-            if((pointsToSupport[i] - pointsToSupport[0]).norm() < (closest - pointsToSupport[0]).norm())
+            if((pointsToSupport[i] - pointsToSupport.front()).norm() < (closest - pointsToSupport.front()).norm()
+                && angleOfVectors(pointsToSupport[i] - pointsToSupport.front(), Vec(pointsToSupport[i].x, pointsToSupport[i].y, pointsToSupport.front().z) - pointsToSupport.front()) > degToRad(90)-angleLimit)
                 closest = pointsToSupport[i];
         }
+        if(angleOfVectors(closest - pointsToSupport.front(), Vec(closest.x, closest.y, pointsToSupport.front().z) - pointsToSupport.front()) > degToRad(90)-angleLimit)
+            return pointsToSupport.front();
         return closest;
     }
 }
