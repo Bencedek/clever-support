@@ -1011,48 +1011,53 @@ void MyViewer::calculateSupportTreePoints(){
     pointsToSupport.clear();
     treePoints.clear();
     calculatePointsToSupport();
-    std::sort(pointsToSupport.begin(), pointsToSupport.end(), [](Vec a, Vec b) {return a.z > b.z;});
+    std::sort(pointsToSupport.begin(), pointsToSupport.end(), [](Vec a, Vec b) {
+        if(a.z == b.z){
+            return a.x+a.y > b.x+b.y;
+        }
+        else return a.z > b.z;});
     pointsToSupport.erase(std::unique( pointsToSupport.begin(), pointsToSupport.end() ), pointsToSupport.end());
 
     while(!pointsToSupport.empty()){
         Vec p = pointsToSupport.front();
-        Vec closestFromPoints = getClosestPointFromPoints();
-        //Vec closestOnModel = getClosestPointOnModel(); -> will be implemented later
+        Vec closestFromPoints = getClosestPointFromPoints(p);
+        Vec closestOnModel = getClosestPointOnModel(p);
         Vec closestOnBase (p.x, p.y, 0.0);
 
         if (pointsToSupport.size() > 1
+            && p!= closestFromPoints
             && (p - closestFromPoints).norm() <= (p - closestOnBase).norm()
-            /*&& (p - closestFromPoints).norm() <= (p - closestOnModel).norm() */
-            && p!= closestFromPoints)
+            && (p - closestFromPoints).norm() <= (p - closestOnModel).norm())
         {
             Vec common = getCommonSupportPoint(p, closestFromPoints);
             treePoints.push_back(TreePoint(p, common));
             treePoints.push_back(TreePoint(closestFromPoints, common));
             pointsToSupport.erase(std::find(pointsToSupport.begin(), pointsToSupport.end(), closestFromPoints));
             pointsToSupport.push_back(common);
-        } /*else if ((p - closestOnModel).norm() <= (p - closestFromPoints).norm()
-            && (p - closestOnModel).norm() <= (p - closestOnBase).norm())
+        } else if (p != closestOnModel
+                   && (p - closestOnModel).norm() <= (p - closestFromPoints).norm()
+                   && (p - closestOnModel).norm() <= (p - closestOnBase).norm()){
             treePoints.push_back(TreePoint(p, closestOnModel));
-        }*/
+        }
         else {
             treePoints.push_back(TreePoint(p, Vec(p.x, p.y, 0.0)));
         }
-        pointsToSupport.pop_back();
+        pointsToSupport.pop_front();
     }
 }
 
-Vec MyViewer::getClosestPointFromPoints(){
+Vec MyViewer::getClosestPointFromPoints(Vec p){
     if(pointsToSupport.size() <= 1)
-        return pointsToSupport.front();
+        return p;
     else {
         Vec closest = pointsToSupport[1];
         for(size_t i = 1; i < pointsToSupport.size(); ++i){
-            if((pointsToSupport[i] - pointsToSupport.front()).norm() < (closest - pointsToSupport.front()).norm()
-                && angleOfVectors(pointsToSupport[i] - pointsToSupport.front(), Vec(pointsToSupport[i].x, pointsToSupport[i].y, pointsToSupport.front().z) - pointsToSupport.front()) > degToRad(90)-angleLimit)
+            if((pointsToSupport[i] - p).norm() < (closest - p).norm()
+                && angleOfVectors(pointsToSupport[i] - p, Vec(pointsToSupport[i].x, pointsToSupport[i].y, p.z) - p) > degToRad(90)-angleLimit)
                 closest = pointsToSupport[i];
         }
-        if(angleOfVectors(closest - pointsToSupport.front(), Vec(closest.x, closest.y, pointsToSupport.front().z) - pointsToSupport.front()) > degToRad(90)-angleLimit)
-            return pointsToSupport.front();
+        if(angleOfVectors(closest - p, Vec(closest.x, closest.y, p.z) - p) > degToRad(90)-angleLimit)
+            return p;
         return closest;
     }
 }
@@ -1062,6 +1067,103 @@ Vec MyViewer::getCommonSupportPoint(Vec p1, Vec p2){
     Vec fromp1 = rotateAround(Vec(p1.x, p1.y, 0.0) - p1, normal, angleLimit);
     Vec fromp2 = rotateAround(Vec(p2.x, p2.y, 0.0) - p2, normal, -angleLimit);
     return intersectLines(p1, fromp1, p2, fromp2);
+}
+
+Vec MyViewer::getClosestPointOnModel(Vec p){
+    // NEEDS EXTRA SETTINGS TO ONLY CHECK POINTS LOWER THAN
+    Vec closest;
+    bool closestSet = false;
+    for(auto f: mesh.faces()){
+        Vec projection = projectToTriangle(p, f);
+        if(!closestSet
+            || ((projection - p).norm() < (closest - p).norm()                                                              // SOMETHING
+                && projection.z < p.z                                                                                       // IS STILL
+                && angleOfVectors(projection - p, Vec(projection.x, projection.y, p.z) - p) > degToRad(90)-angleLimit)){    // NOT RIGHT
+            closest = projection;
+        }
+    }
+    return closest;
+}
+
+Vec MyViewer::projectToTriangle(const Vec &p, const OpenMesh::SmartFaceHandle &f) {
+    std::vector<Vec> vertices;
+    for (auto v : f.vertices()){
+        vertices.push_back(vertexToVec(v));
+    }
+    const Vec &q1 = vertices[0], &q2 = vertices[1], &q3 = vertices[2];
+    // As in Schneider, Eberly: Geometric Tools for Computer Graphics, Morgan Kaufmann, 2003.
+    // Section 10.3.2, pp. 376-382 (with my corrections)
+    const Vec &P = p, &B = q1;
+    Vec E0 = q2 - q1, E1 = q3 - q1, D = B - P;
+    double a = E0 * E0, b = E0 * E1, c = E1 * E1, d = E0 * D, e = E1 * D;
+    double det = a * c - b * b, s = b * e - c * d, t = b * d - a * e;
+    if (s + t <= det) {
+        if (s < 0) {
+            if (t < 0) {
+                // Region 4
+                if (e < 0) {
+                    s = 0.0;
+                    t = (-e >= c ? 1.0 : -e / c);
+                } else if (d < 0) {
+                    t = 0.0;
+                    s = (-d >= a ? 1.0 : -d / a);
+                } else {
+                    s = 0.0;
+                    t = 0.0;
+                }
+            } else {
+                // Region 3
+                s = 0.0;
+                t = (e >= 0.0 ? 0.0 : (-e >= c ? 1.0 : -e / c));
+            }
+        } else if (t < 0) {
+            // Region 5
+            t = 0.0;
+            s = (d >= 0.0 ? 0.0 : (-d >= a ? 1.0 : -d / a));
+        } else {
+            // Region 0
+            double invDet = 1.0 / det;
+            s *= invDet;
+            t *= invDet;
+        }
+    } else {
+        if (s < 0) {
+            // Region 2
+            double tmp0 = b + d, tmp1 = c + e;
+            if (tmp1 > tmp0) {
+                double numer = tmp1 - tmp0;
+                double denom = a - 2 * b + c;
+                s = (numer >= denom ? 1.0 : numer / denom);
+                t = 1.0 - s;
+            } else {
+                s = 0.0;
+                t = (tmp1 <= 0.0 ? 1.0 : (e >= 0.0 ? 0.0 : -e / c));
+            }
+        } else if (t < 0) {
+            // Region 6
+            double tmp0 = b + e, tmp1 = a + d;
+            if (tmp1 > tmp0) {
+                double numer = tmp1 - tmp0;
+                double denom = c - 2 * b + a;
+                t = (numer >= denom ? 1.0 : numer / denom);
+                s = 1.0 - t;
+            } else {
+                t = 0.0;
+                s = (tmp1 <= 0.0 ? 1.0 : (d >= 0.0 ? 0.0 : -d / a));
+            }
+        } else {
+            // Region 1
+            double numer = c + e - b - d;
+            if (numer <= 0) {
+                s = 0;
+            } else {
+                double denom = a - 2 * b + c;
+                s = (numer >= denom ? 1.0 : numer / denom);
+            }
+            t  = 1.0 - s;
+        }
+    }
+    return B + E0 * s + E1 * t;
 }
 
 void MyViewer::addTreeGeometry(){

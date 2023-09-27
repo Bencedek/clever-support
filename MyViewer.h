@@ -146,8 +146,10 @@ public:
     void generateCones();
     void drawTree();
     void calculateSupportTreePoints();
-    Vec getClosestPointFromPoints();
+    Vec getClosestPointFromPoints(Vec p);
     Vec getCommonSupportPoint(Vec p1, Vec p2);
+    Vec getClosestPointOnModel(Vec p);
+    Vec projectToTriangle(const Vec &p, const OpenMesh::SmartFaceHandle &f);
     void addTreeGeometry();
     double degToRad(double deg);
     double angleOfVectors(Vec v1, Vec v2);
