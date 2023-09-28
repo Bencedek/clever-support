@@ -1080,6 +1080,7 @@ Vec MyViewer::getClosestPointOnModel(Vec p){
                 && projection.z < p.z                                                                                       // IS STILL
                 && angleOfVectors(projection - p, Vec(projection.x, projection.y, p.z) - p) > degToRad(90)-angleLimit)){    // NOT RIGHT
             closest = projection;
+            if (!closestSet) closestSet = true;
         }
     }
     return closest;
