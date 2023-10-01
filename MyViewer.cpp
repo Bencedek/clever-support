@@ -1017,30 +1017,41 @@ void MyViewer::calculateSupportTreePoints(){
         }
         else return a.z > b.z;});
     pointsToSupport.erase(std::unique( pointsToSupport.begin(), pointsToSupport.end() ), pointsToSupport.end());
+    //pointsToSupport.erase(std::remove_if(pointsToSupport.begin(), pointsToSupport.end(), [](const Vec& v) {return v.z <= 0.0;}), pointsToSupport.end());
+    double lowestZ = pointsToSupport.back().z;
 
     while(!pointsToSupport.empty()){
         Vec p = pointsToSupport.front();
         Vec closestFromPoints = getClosestPointFromPoints(p);
         Vec closestOnModel = getClosestPointOnModel(p);
-        Vec closestOnBase (p.x, p.y, 0.0);
+        //Vec closestOnBase (p.x, p.y, 0.0);
+        Vec closestOnBase (p.x, p.y, lowestZ);
+        double distanceFromClosest = (p - closestFromPoints).norm();
+        double distanceFromModel = (p - closestOnModel).norm();
+        double distanceFromBase = (p - closestOnBase).norm();
+        Vec closest;
 
-        if (pointsToSupport.size() > 1
-            && p!= closestFromPoints
-            && (p - closestFromPoints).norm() <= (p - closestOnBase).norm()
-            && (p - closestFromPoints).norm() <= (p - closestOnModel).norm())
+        if(p!= closestFromPoints && p != closestOnModel){
+            if(distanceFromClosest < distanceFromBase && distanceFromClosest <= distanceFromModel) closest = closestFromPoints;
+            else if (distanceFromModel < distanceFromClosest && distanceFromModel < distanceFromBase) closest = closestOnModel;
+            else closest = closestOnBase;
+        } else if (p == closestFromPoints && p != closestOnModel) {
+            if(distanceFromModel < distanceFromBase) closest = closestOnModel;
+            else closest = closestOnBase;
+        } else if (p == closestOnModel && p != closestFromPoints) {
+            if(distanceFromClosest < distanceFromBase) closest = closestFromPoints;
+            else closest = closestOnBase;
+        } else closest = closestOnBase;
+
+        if (pointsToSupport.size() > 1 && closest == closestFromPoints && closest != p)
         {
             Vec common = getCommonSupportPoint(p, closestFromPoints);
             treePoints.push_back(TreePoint(p, common));
             treePoints.push_back(TreePoint(closestFromPoints, common));
             pointsToSupport.erase(std::find(pointsToSupport.begin(), pointsToSupport.end(), closestFromPoints));
             pointsToSupport.push_back(common);
-        } else if (p != closestOnModel
-                   && (p - closestOnModel).norm() <= (p - closestFromPoints).norm()
-                   && (p - closestOnModel).norm() <= (p - closestOnBase).norm()){
-            treePoints.push_back(TreePoint(p, closestOnModel));
-        }
-        else {
-            treePoints.push_back(TreePoint(p, Vec(p.x, p.y, 0.0)));
+        } else {
+            treePoints.push_back(TreePoint(p, closest));
         }
         pointsToSupport.pop_front();
     }
@@ -1070,20 +1081,20 @@ Vec MyViewer::getCommonSupportPoint(Vec p1, Vec p2){
 }
 
 Vec MyViewer::getClosestPointOnModel(Vec p){
-    // NEEDS EXTRA SETTINGS TO ONLY CHECK POINTS LOWER THAN
     Vec closest;
     bool closestSet = false;
     for(auto f: mesh.faces()){
         Vec projection = projectToTriangle(p, f);
-        if(!closestSet
-            || ((projection - p).norm() < (closest - p).norm()                                                              // SOMETHING
-                && projection.z < p.z                                                                                       // IS STILL
-                && angleOfVectors(projection - p, Vec(projection.x, projection.y, p.z) - p) > degToRad(90)-angleLimit)){    // NOT RIGHT
+        if(projection.z < p.z
+            && angleOfVectors(projection - p, Vec(projection.x, projection.y, p.z) - p) > degToRad(90)-angleLimit
+            && (!closestSet
+                || (projection - p).norm() < (closest - p).norm())){
             closest = projection;
-            if (!closestSet) closestSet = true;
+            closestSet = true;
         }
     }
-    return closest;
+    if(closestSet) return closest;
+    return p;
 }
 
 Vec MyViewer::projectToTriangle(const Vec &p, const OpenMesh::SmartFaceHandle &f) {
