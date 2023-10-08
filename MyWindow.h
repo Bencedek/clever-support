@@ -26,7 +26,9 @@ private slots:
     void setAngleLimit();
     void setFavoriteModel();
     void toggleCones();
+    void calculateTreePoints();
     void toggleTree();
+    void addTreeGeometry();
     void startComputation(QString message);
     void midComputation(int percent);
     void endComputation();

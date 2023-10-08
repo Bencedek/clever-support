@@ -151,10 +151,12 @@ public:
     Vec getClosestPointOnModel(Vec p);
     Vec projectToTriangle(const Vec &p, const OpenMesh::SmartFaceHandle &f);
     void addTreeGeometry();
+    void addStrutBetween(Vec a, Vec b);
     double degToRad(double deg);
     double angleOfVectors(Vec v1, Vec v2);
     Vec vertexToVec(OpenMesh::SmartVertexHandle v);
     Vec rotateAround(Vec v, Vec pivot, double angle /*radians*/);
+    void sortPointsToSupport();
 };
 
 #include "MyViewer.hpp"
