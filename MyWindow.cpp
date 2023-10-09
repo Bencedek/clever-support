@@ -63,8 +63,14 @@ MyWindow::MyWindow(QApplication *parent) :
     auto toggleConesAction = new QAction(tr("Toggle cones"), this);
     connect(toggleConesAction, SIGNAL(triggered()), this, SLOT(toggleCones()));
 
+    auto calculateTreeAction = new QAction(tr("Refresh support tree points"), this);
+    connect(calculateTreeAction, SIGNAL(triggered()), this, SLOT(calculateTreePoints()));
+
     auto treePointsAction = new QAction(tr("Toggle support tree"), this);
     connect(treePointsAction, SIGNAL(triggered()), this, SLOT(toggleTree()));
+
+    auto addTreeGeometryAction = new QAction(tr("Add support tree geometry"), this);
+    connect(addTreeGeometryAction, SIGNAL(triggered()), this, SLOT(addTreeGeometry()));
 
     auto setFavoriteAction = new QAction(tr("Set favorite model"), this);
     connect(setFavoriteAction, SIGNAL(triggered()), this, SLOT(setFavoriteModel()));
@@ -84,7 +90,9 @@ MyWindow::MyWindow(QApplication *parent) :
     supportMenu->addAction(angleLimitAction);
     supportMenu->addAction(gridAction);
     supportMenu->addAction(toggleConesAction);
+    supportMenu->addAction(calculateTreeAction);
     supportMenu->addAction(treePointsAction);
+    supportMenu->addAction(addTreeGeometryAction);
     supportMenu->addAction(setFavoriteAction);
 
 }
@@ -347,8 +355,19 @@ void MyWindow::toggleCones() {
     viewer->update();
 }
 
+void MyWindow::calculateTreePoints() {
+    viewer->calculateSupportTreePoints();
+    viewer->update();
+}
+
 void MyWindow::toggleTree() {
     viewer->toggleTree();
+    viewer->update();
+
+}
+
+void MyWindow::addTreeGeometry(){
+    viewer->addTreeGeometry();
     viewer->update();
 }
 
