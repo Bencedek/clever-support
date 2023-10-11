@@ -111,12 +111,29 @@ private:
     std::string last_filename;
 
     // Clever Support
-    struct TreePoint {
+    enum locationType {
+        COMMON,
+        MODEL,
+        PLATE
+    };
+    struct SupportPoint{
         Vec location;
-        Vec nextPoint;
+        locationType type;
 
-        TreePoint(Vec v): location(v){}
-        TreePoint(Vec v, Vec np): location(v), nextPoint(np){}
+        SupportPoint(Vec location, enum locationType type): location(location), type(type){}
+
+        bool operator==(const SupportPoint& other) const {
+            // Define the equality logic here
+            return location == other.location;
+        }
+    };
+
+    struct TreePoint {
+
+        SupportPoint point;
+        SupportPoint nextPoint;
+
+        TreePoint(SupportPoint point, SupportPoint nextPoint): point(point), nextPoint(nextPoint){}
     };
 
     double gridDensity;
@@ -128,7 +145,7 @@ private:
     std::vector<OpenMesh::SmartVertexHandle> verticesToSupport;
     std::vector<OpenMesh::SmartFaceHandle> facesToSupport;
     std::vector<OpenMesh::SmartEdgeHandle> edgesToSupport;
-    std::deque<Vec> pointsToSupport;
+    std::deque<SupportPoint> pointsToSupport;
     std::vector<TreePoint> treePoints;
 
 public:
@@ -146,12 +163,14 @@ public:
     void generateCones();
     void drawTree();
     void calculateSupportTreePoints();
-    Vec getClosestPointFromPoints(Vec p);
+    SupportPoint getClosestPointFromPoints(SupportPoint p);
     Vec getCommonSupportPoint(Vec p1, Vec p2);
     Vec getClosestPointOnModel(Vec p);
     Vec projectToTriangle(const Vec &p, const OpenMesh::SmartFaceHandle &f);
     void addTreeGeometry();
-    void addStrutBetween(Vec a, Vec b);
+    void addStrut(SupportPoint top, SupportPoint bottom);
+    void addTopConnection(Vec a, Vec b);
+    void addFace(Vec v1, Vec v2, Vec v3);
     double degToRad(double deg);
     double angleOfVectors(Vec v1, Vec v2);
     Vec vertexToVec(OpenMesh::SmartVertexHandle v);

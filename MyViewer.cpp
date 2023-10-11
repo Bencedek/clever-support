@@ -924,7 +924,7 @@ void MyViewer::showAllPointsToSupport(){
     glPointSize(5.0);
     glBegin(GL_POINTS);
     for (auto p : pointsToSupport){
-        glVertex3dv(p);
+        glVertex3dv(p.location);
     }
     glEnd();
     glPointSize(1.0);
@@ -933,7 +933,7 @@ void MyViewer::showAllPointsToSupport(){
 
 void MyViewer::calculatePointsToSupport(){
     for (auto v: verticesToSupport){
-        pointsToSupport.push_back(vertexToVec(v));
+        pointsToSupport.push_back(SupportPoint(vertexToVec(v), MODEL));
     }
     for (auto e : edgesToSupport){
         generateEdgePoints(vertexToVec(e.v0()), vertexToVec(e.v1()), gridDensity);
@@ -949,7 +949,7 @@ void MyViewer::generateEdgePoints(Vec A, Vec B, int density){
     Vec v(A - B);
 
     for(size_t i = 0; i < density; ++i){
-        pointsToSupport.push_back(B + i * (v / (density - 1)));
+        pointsToSupport.push_back(SupportPoint(B + i * (v / (density - 1)), MODEL));
     }
 }
 
@@ -969,7 +969,7 @@ void MyViewer::generateFacePoints(OpenMesh::SmartFaceHandle f){
         double delta = (i-1) / (gridDensity-1);
         generateEdgePoints(B + v1 * delta, B + v2 * delta, i);
     }
-    pointsToSupport.push_back(B);
+    pointsToSupport.push_back(SupportPoint(B, MODEL));
 }
 
 void MyViewer::generateCones(){
@@ -977,14 +977,14 @@ void MyViewer::generateCones(){
         std::vector<Vec> coneBasePoints;
         for (int i = 0; i < 50; ++i) {
             double pivotAngle = i * 2 * M_PI / 50;
-            coneBasePoints.push_back(Vec(p.x + cos(pivotAngle) * tan(angleLimit) * p.z, p.y + sin(pivotAngle) * tan(angleLimit) * p.z, 0.0));
+            coneBasePoints.push_back(Vec(p.location.x + cos(pivotAngle) * tan(angleLimit) * p.location.z, p.location.y + sin(pivotAngle) * tan(angleLimit) * p.location.z, 0.0));
         }
         glDisable(GL_LIGHTING);
         glPolygonMode(GL_FRONT, GL_LINES);
         glColor3d(1.0, 1.0, 0.0);
         glBegin(GL_LINES);
         for (auto s : coneBasePoints){
-            glVertex3dv(p);
+            glVertex3dv(p.location);
             glVertex3dv(s);
         }
         glEnd();
@@ -999,8 +999,8 @@ void MyViewer::drawTree(){
     glColor3d(0.0, 1.0, 1.0);
     glBegin(GL_LINES);
     for (auto tp : treePoints){
-        glVertex3dv(tp.location);
-        glVertex3dv(tp.nextPoint);
+        glVertex3dv(tp.point.location);
+        glVertex3dv(tp.nextPoint.location);
     }
     glEnd();
     glLineWidth(1.0);
@@ -1012,61 +1012,63 @@ void MyViewer::calculateSupportTreePoints(){
     treePoints.clear();
     calculatePointsToSupport();
     double lowestZ;
-    if(!pointsToSupport.empty()) lowestZ  = pointsToSupport.back().z;
+    if(!pointsToSupport.empty()) lowestZ  = pointsToSupport.back().location.z;
     double fullSize = pointsToSupport.size();
     emit startComputation(tr("Calculating tree points..."));
 
     while(!pointsToSupport.empty()){
         emit midComputation(100 * (1.0 - pointsToSupport.size() / fullSize));
-        Vec p = pointsToSupport.front();
-        Vec closestFromPoints = getClosestPointFromPoints(p);
-        Vec closestOnModel = getClosestPointOnModel(p);
-        Vec closestOnBase (p.x, p.y, lowestZ);
+        SupportPoint p = pointsToSupport.front();
+        SupportPoint closestFromPoints = getClosestPointFromPoints(p);
+        Vec closestOnModel = getClosestPointOnModel(p.location);
+        Vec closestOnBase (p.location.x, p.location.y, lowestZ);
         //Vec closestOnBase (p.x, p.y, 0.0);
-        double distanceFromClosest = (p - closestFromPoints).norm();
-        double distanceFromModel = (p - closestOnModel).norm();
-        double distanceFromBase = (p - closestOnBase).norm();
+        double distanceFromClosest = (p.location - closestFromPoints.location).norm();
+        double distanceFromModel = (p.location - closestOnModel).norm();
+        double distanceFromBase = (p.location - closestOnBase).norm();
         Vec closest;
 
-        if(p!= closestFromPoints && p != closestOnModel){
-            if(distanceFromClosest < distanceFromBase && distanceFromClosest <= distanceFromModel) closest = closestFromPoints;
+        if(p.location != closestFromPoints.location && p.location != closestOnModel){
+            if(distanceFromClosest < distanceFromBase && distanceFromClosest <= distanceFromModel) closest = closestFromPoints.location;
             else if (distanceFromModel < distanceFromClosest && distanceFromModel < distanceFromBase) closest = closestOnModel;
             else closest = closestOnBase;
-        } else if (p == closestFromPoints && p != closestOnModel) {
+        } else if (p.location == closestFromPoints.location && p.location != closestOnModel) {
             if(distanceFromModel < distanceFromBase) closest = closestOnModel;
             else closest = closestOnBase;
-        } else if (p == closestOnModel && p != closestFromPoints) {
-            if(distanceFromClosest < distanceFromBase) closest = closestFromPoints;
+        } else if (p.location == closestOnModel && p.location != closestFromPoints.location) {
+            if(distanceFromClosest < distanceFromBase) closest = closestFromPoints.location;
             else closest = closestOnBase;
         } else closest = closestOnBase;
 
-        if (pointsToSupport.size() > 1 && closest == closestFromPoints && closest != p)
+        if (pointsToSupport.size() > 1 && closest == closestFromPoints.location && closest != p.location)
         {
-            Vec common = getCommonSupportPoint(p, closestFromPoints);
-            treePoints.push_back(TreePoint(p, common));
-            treePoints.push_back(TreePoint(closestFromPoints, common));
+            Vec common = getCommonSupportPoint(p.location, closestFromPoints.location);
+            treePoints.push_back(TreePoint(p, SupportPoint(common, COMMON)));
+            treePoints.push_back(TreePoint(closestFromPoints, SupportPoint(common, COMMON)));
             pointsToSupport.erase(std::find(pointsToSupport.begin(), pointsToSupport.end(), closestFromPoints));
-            pointsToSupport.push_back(common);
+            pointsToSupport.push_back(SupportPoint(common, COMMON));
             sortPointsToSupport();
+        } else if(closest == closestOnModel && closest != p.location){
+            treePoints.push_back(TreePoint(p, SupportPoint(closest, MODEL)));
         } else {
-            treePoints.push_back(TreePoint(p, closest));
+            treePoints.push_back(TreePoint(p, SupportPoint(closest, PLATE)));
         }
         pointsToSupport.pop_front();
     }
     emit endComputation();
 }
 
-Vec MyViewer::getClosestPointFromPoints(Vec p){
+MyViewer::SupportPoint MyViewer::getClosestPointFromPoints(SupportPoint p){
     if(pointsToSupport.size() <= 1)
         return p;
     else {
-        Vec closest = pointsToSupport[1];
+        SupportPoint closest = pointsToSupport[1];
         for(size_t i = 1; i < pointsToSupport.size(); ++i){
-            if((pointsToSupport[i] - p).norm() < (closest - p).norm()
-                && angleOfVectors(pointsToSupport[i] - p, Vec(pointsToSupport[i].x, pointsToSupport[i].y, p.z) - p) > degToRad(90)-angleLimit)
+            if((pointsToSupport[i].location - p.location).norm() < (closest.location - p.location).norm()
+                && angleOfVectors(pointsToSupport[i].location - p.location, Vec(pointsToSupport[i].location.x, pointsToSupport[i].location.y, p.location.z) - p.location) > degToRad(90)-angleLimit)
                 closest = pointsToSupport[i];
         }
-        if(angleOfVectors(closest - p, Vec(closest.x, closest.y, p.z) - p) > degToRad(90) - angleLimit)
+        if(angleOfVectors(closest.location - p.location, Vec(closest.location.x, closest.location.y, p.location.z) - p.location) > degToRad(90) - angleLimit)
             return p;
         return closest;
     }
@@ -1178,19 +1180,62 @@ Vec MyViewer::projectToTriangle(const Vec &p, const OpenMesh::SmartFaceHandle &f
 }
 
 void MyViewer::addTreeGeometry(){
+    emit startComputation(tr("Generating tree..."));
+    double counter = 0.0;
     for(auto t : treePoints){
-        if(t.location != t.nextPoint) addStrutBetween(t.location, t.nextPoint);
+        emit midComputation(100 * counter/treePoints.size());
+        if(t.point.location != t.nextPoint.location) addStrut(t.point, t.nextPoint);
+        counter += 1.0;
+    }
+    emit endComputation();
+}
+
+void MyViewer::addStrut(SupportPoint top, SupportPoint bottom){
+    Vec topPoint = top.location;
+    Vec bottomPoint = bottom.location;
+    if(top.type == MODEL) topPoint += (bottom.location - top.location).unit()/2;
+    if(bottom.type == MODEL) bottomPoint += (top.location - bottom.location).unit()/2;
+    double r = (0.015 * (top.location - bottom.location).norm() * angleOfVectors(topPoint, bottomPoint)); // should be 0.0015
+    std::vector<Vec> topTriangle, bottomTriangle;
+    for(int i = 0; i < 3; ++i){
+        Vec newPoint = rotateAround(Vec(r, 0.0, 0.0), Vec(0.0, 0.0, 1.0), i * 2 * M_PI / 3);
+        topTriangle.push_back(topPoint + newPoint);
+        bottomTriangle.push_back(bottomPoint + newPoint);
+    }
+    addFace(topTriangle[0], bottomTriangle[0], bottomTriangle[1]);
+    addFace(topTriangle[0], bottomTriangle[1], topTriangle[1]);
+    addFace(topTriangle[1], bottomTriangle[1], bottomTriangle[2]);
+    addFace(topTriangle[1], bottomTriangle[2], topTriangle[2]);
+    addFace(topTriangle[2], bottomTriangle[2], bottomTriangle[0]);
+    addFace(topTriangle[2], bottomTriangle[0], topTriangle[0]);
+    if(top.type == MODEL){
+        addFace(top.location, topTriangle[0], topTriangle[1]);
+        addFace(top.location, topTriangle[1], topTriangle[2]);
+        addFace(top.location, topTriangle[2], topTriangle[0]);
+    } else addFace(topTriangle[0], topTriangle[1], topTriangle[2]);
+    switch(bottom.type) {
+        case MODEL:
+            addFace(bottom.location, bottomTriangle[0], bottomTriangle[1]);
+            addFace(bottom.location, bottomTriangle[1], bottomTriangle[2]);
+            addFace(bottom.location, bottomTriangle[2], bottomTriangle[0]);
+            break;
+        case PLATE:
+            addFace(bottomTriangle[0], bottomTriangle[1], bottomTriangle[2]);
+            break;
+        default: break;
     }
 }
 
-void MyViewer::addStrutBetween(Vec a, Vec b){
-    double r = (0.0015 * (a-b).norm() * angleOfVectors(a, b)) / 2;
-    std::vector<Vec> aTriangle, bTriangle;
-    for(int i = 0; i < 3; ++i){
-        Vec newPoint = rotateAround(Vec(r, 0.0, 0.0), Vec(0.0, 0.0, 1.0), i * 2 * M_PI / 3);
-        aTriangle.push_back(a + newPoint);
-        bTriangle.push_back(b + newPoint);
-    }
+void MyViewer::addFace(Vec v1, Vec v2, Vec v3){
+    MyMesh::VertexHandle vh1 = mesh.add_vertex(MyMesh::Point(v1.v_));
+    MyMesh::VertexHandle vh2 = mesh.add_vertex(MyMesh::Point(v2.v_));
+    MyMesh::VertexHandle vh3 = mesh.add_vertex(MyMesh::Point(v3.v_));
+    std::vector<MyMesh::VertexHandle> faceVertices;
+    faceVertices.push_back(vh1);
+    faceVertices.push_back(vh2);
+    faceVertices.push_back(vh3);
+    mesh.add_face(faceVertices);
+    mesh.update_normals();
 }
 
 double MyViewer::degToRad(double deg){
@@ -1211,7 +1256,7 @@ Vec MyViewer::rotateAround(Vec v, Vec pivot, double angle){
 }
 
 void MyViewer::sortPointsToSupport(){
-    std::sort(pointsToSupport.begin(), pointsToSupport.end(), [](Vec a, Vec b) {
-        if(a.z == b.z) return a.x+a.y > b.x+b.y;
-        else return a.z > b.z;});
+    std::sort(pointsToSupport.begin(), pointsToSupport.end(), [](SupportPoint a, SupportPoint b) {
+        if(a.location.z == b.location.z) return a.location.x+a.location.y > b.location.x+b.location.y;
+        else return a.location.z > b.location.z;});
 }
