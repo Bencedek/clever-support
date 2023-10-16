@@ -1187,6 +1187,7 @@ void MyViewer::addTreeGeometry(){
         if(t.point.location != t.nextPoint.location) addStrut(t.point, t.nextPoint);
         counter += 1.0;
     }
+    mesh.update_normals();
     emit endComputation();
 }
 
@@ -1195,7 +1196,7 @@ void MyViewer::addStrut(SupportPoint top, SupportPoint bottom){
     Vec bottomPoint = bottom.location;
     if(top.type == MODEL) topPoint += (bottom.location - top.location).unit()/2;
     if(bottom.type == MODEL) bottomPoint += (top.location - bottom.location).unit()/2;
-    double r = (0.015 * (top.location - bottom.location).norm() * angleOfVectors(topPoint, bottomPoint)); // should be 0.0015
+    double r = (0.015 * (top.location - bottom.location).norm() * angleOfVectors(topPoint, bottomPoint)); // should be 0.0015 -> ha függőleges szorozzuk valamivel
     std::vector<Vec> topTriangle, bottomTriangle;
     for(int i = 0; i < 3; ++i){
         Vec newPoint = rotateAround(Vec(r, 0.0, 0.0), Vec(0.0, 0.0, 1.0), i * 2 * M_PI / 3);
@@ -1235,7 +1236,6 @@ void MyViewer::addFace(Vec v1, Vec v2, Vec v3){
     faceVertices.push_back(vh2);
     faceVertices.push_back(vh3);
     mesh.add_face(faceVertices);
-    mesh.update_normals();
 }
 
 double MyViewer::degToRad(double deg){
