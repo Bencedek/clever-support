@@ -363,7 +363,6 @@ void MyWindow::calculateTreePoints() {
 void MyWindow::toggleTree() {
     viewer->toggleTree();
     viewer->update();
-
 }
 
 void MyWindow::addTreeGeometry(){

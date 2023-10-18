@@ -155,7 +155,8 @@ public:
     inline void setAngleLimit(double a);
     inline void toggleCones();
     inline void toggleTree();
-    void colorPointsAndEdges();
+    void colorFacesEdgesAndPoints();
+    void getElementsThatNeedSupport();
     void showAllPointsToSupport();
     void calculatePointsToSupport();
     void generateEdgePoints(Vec A, Vec B, int density);
