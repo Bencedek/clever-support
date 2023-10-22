@@ -445,11 +445,6 @@ void MyViewer::init() {
 }
 
 void MyViewer::draw() {
-    // for Clever Support
-    verticesToSupport.clear();
-    facesToSupport.clear();
-    edgesToSupport.clear();
-
     if (model_type == ModelType::BEZIER_SURFACE && show_control_points)
         drawControlNet();
 
@@ -474,14 +469,6 @@ void MyViewer::draw() {
             glEnable(GL_TEXTURE_1D);
         }
         for (auto f : mesh.faces()) {
-            // for Clever Support
-            if (showWhereSupportNeeded){
-                if(angleOfVectors(Vec(mesh.normal(f).data()), Vec(0,0,1)) - degToRad(90.0) >= angleLimit){
-                    glColor3d(1.0, 0.0, 0.0);
-                    facesToSupport.push_back(f);
-                }
-                else glColor3d(1.0, 1.0, 1.0);
-            }
             glBegin(GL_POLYGON);
             for (auto v : mesh.fv_range(f)) {
                 if (visualization == Visualization::MEAN)
@@ -518,13 +505,13 @@ void MyViewer::draw() {
 
     // for Clever Support
     if (showWhereSupportNeeded) {
-        colorPointsAndEdges();
+        colorFacesEdgesAndPoints();
         if (showCones) {
             generateCones();
         }
-        if(showTree){
-            drawTree();
-        }
+    }
+    if(showTree){
+        drawTree();
     }
 
     if (axes.shown)
@@ -856,7 +843,64 @@ QString MyViewer::helpString() const {
 
 // Clever Support
 
-void MyViewer::colorPointsAndEdges(){
+void MyViewer::colorFacesEdgesAndPoints(){
+    getElementsThatNeedSupport();
+
+    // draw faces
+    glPolygonMode(GL_FRONT_AND_BACK, !show_solid && show_wireframe ? GL_LINE : GL_FILL);
+    glDisable(GL_POLYGON_OFFSET_FILL);
+    glColor3d(1.0, 0.0, 0.0);
+    for(auto f : facesToSupport){
+        glBegin(GL_POLYGON);
+        for(auto v : mesh.fv_range(f)){
+            glNormal3dv(mesh.normal(v).data());
+            glVertex3dv(mesh.point(v).data());
+        }
+        glEnd();
+    }
+
+    // draw edges
+    glPolygonMode(GL_FRONT, GL_LINE);
+    glColor3d(0.0, 1.0, 0.0);
+    glLineWidth(2.0);
+    glDisable(GL_LIGHTING);
+    glBegin(GL_LINES);
+    for (auto e : edgesToSupport){
+        glVertex3dv(mesh.point(e.v0()).data());
+        glVertex3dv(mesh.point(e.v1()).data());
+    }
+    glEnd();
+    glLineWidth(1.0);
+
+    // draw points
+    if(showAllPoints) {
+        showAllPointsToSupport();
+    }
+    else {
+        glPolygonMode(GL_FRONT, GL_POINT);
+        glColor3d(1.0, 0.0, 1.0);
+        glPointSize(5.0);
+        glBegin(GL_POINTS);
+        for (auto v : verticesToSupport){
+            glVertex3dv(mesh.point(v).data());
+        }
+        glEnd();
+        glPointSize(1.0);
+        glEnable(GL_LIGHTING);
+    }
+}
+
+void MyViewer::getElementsThatNeedSupport(){
+    facesToSupport.clear();
+    edgesToSupport.clear();
+    verticesToSupport.clear();
+
+    for(auto f : mesh.faces()){
+        if(angleOfVectors(Vec(mesh.normal(f).data()), Vec(0,0,1)) - degToRad(90.0) >= angleLimit){
+            facesToSupport.push_back(f);
+        }
+    }
+
     for (auto v : mesh.vertices()) {
         OpenMesh::SmartVertexHandle* lowestOfNeighbors = &v;
         float lowestZ = mesh.point(v).data()[2];
@@ -885,38 +929,9 @@ void MyViewer::colorPointsAndEdges(){
             }
         }
     }
-    glPolygonMode(GL_FRONT, GL_LINE);
-    glColor3d(0.0, 1.0, 0.0);
-    glLineWidth(2.0);
-    glDisable(GL_LIGHTING);
-    glBegin(GL_LINES);
-    for (auto e : edgesToSupport){
-        glVertex3dv(mesh.point(e.v0()).data());
-        glVertex3dv(mesh.point(e.v1()).data());
-    }
-    glEnd();
-    glLineWidth(1.0);
-
-    if(showAllPoints) {
-        showAllPointsToSupport();
-    }
-    else {
-        glPolygonMode(GL_FRONT, GL_POINT);
-        glColor3d(1.0, 0.0, 1.0);
-        glPointSize(5.0);
-        glBegin(GL_POINTS);
-        for (auto v : verticesToSupport){
-            glVertex3dv(mesh.point(v).data());
-        }
-        glEnd();
-        glPointSize(1.0);
-        glEnable(GL_LIGHTING);
-    }
 }
 
 void MyViewer::showAllPointsToSupport(){
-    pointsToSupport.clear();
-
     calculatePointsToSupport();
 
     glPolygonMode(GL_FRONT, GL_POINT);
@@ -932,6 +947,8 @@ void MyViewer::showAllPointsToSupport(){
 }
 
 void MyViewer::calculatePointsToSupport(){
+    pointsToSupport.clear();
+
     for (auto v: verticesToSupport){
         pointsToSupport.push_back(SupportPoint(vertexToVec(v), MODEL));
     }
@@ -993,6 +1010,7 @@ void MyViewer::generateCones(){
 }
 
 void MyViewer::drawTree(){
+    if(treePoints.empty()) calculateSupportTreePoints();
     glDisable(GL_LIGHTING);
     glPolygonMode(GL_FRONT, GL_LINES);
     glLineWidth(2.0);
@@ -1008,8 +1026,8 @@ void MyViewer::drawTree(){
 }
 
 void MyViewer::calculateSupportTreePoints(){
-    pointsToSupport.clear();
     treePoints.clear();
+    getElementsThatNeedSupport();
     calculatePointsToSupport();
     double lowestZ;
     if(!pointsToSupport.empty()) lowestZ  = pointsToSupport.back().location.z;
@@ -1028,14 +1046,14 @@ void MyViewer::calculateSupportTreePoints(){
         double distanceFromBase = (p.location - closestOnBase).norm();
         Vec closest;
 
-        if(p.location != closestFromPoints.location && p.location != closestOnModel){
+        if(distanceFromClosest > 0.0 && distanceFromModel > 0.0){
             if(distanceFromClosest < distanceFromBase && distanceFromClosest <= distanceFromModel) closest = closestFromPoints.location;
             else if (distanceFromModel < distanceFromClosest && distanceFromModel < distanceFromBase) closest = closestOnModel;
             else closest = closestOnBase;
-        } else if (p.location == closestFromPoints.location && p.location != closestOnModel) {
+        } else if (distanceFromClosest == 0.0 && distanceFromModel > 0.0) {
             if(distanceFromModel < distanceFromBase) closest = closestOnModel;
             else closest = closestOnBase;
-        } else if (p.location == closestOnModel && p.location != closestFromPoints.location) {
+        } else if (distanceFromModel == 0.0 && distanceFromClosest > 0.0) {
             if(distanceFromClosest < distanceFromBase) closest = closestFromPoints.location;
             else closest = closestOnBase;
         } else closest = closestOnBase;
@@ -1056,6 +1074,7 @@ void MyViewer::calculateSupportTreePoints(){
         pointsToSupport.pop_front();
     }
     emit endComputation();
+    update();
 }
 
 MyViewer::SupportPoint MyViewer::getClosestPointFromPoints(SupportPoint p){
@@ -1065,7 +1084,7 @@ MyViewer::SupportPoint MyViewer::getClosestPointFromPoints(SupportPoint p){
         SupportPoint closest = pointsToSupport[1];
         for(size_t i = 1; i < pointsToSupport.size(); ++i){
             if((pointsToSupport[i].location - p.location).norm() < (closest.location - p.location).norm()
-                && angleOfVectors(pointsToSupport[i].location - p.location, Vec(pointsToSupport[i].location.x, pointsToSupport[i].location.y, p.location.z) - p.location) > degToRad(90)-angleLimit)
+                && angleOfVectors(pointsToSupport[i].location - p.location, Vec(pointsToSupport[i].location.x, pointsToSupport[i].location.y, p.location.z) - p.location) < degToRad(90) - angleLimit)
                 closest = pointsToSupport[i];
         }
         if(angleOfVectors(closest.location - p.location, Vec(closest.location.x, closest.location.y, p.location.z) - p.location) > degToRad(90) - angleLimit)
@@ -1180,6 +1199,9 @@ Vec MyViewer::projectToTriangle(const Vec &p, const OpenMesh::SmartFaceHandle &f
 }
 
 void MyViewer::addTreeGeometry(){
+    showWhereSupportNeeded = false;
+    update();
+    if(treePoints.empty()) calculateSupportTreePoints();
     emit startComputation(tr("Generating tree..."));
     double counter = 0.0;
     for(auto t : treePoints){
@@ -1196,7 +1218,7 @@ void MyViewer::addStrut(SupportPoint top, SupportPoint bottom){
     Vec bottomPoint = bottom.location;
     if(top.type == MODEL) topPoint += (bottom.location - top.location).unit()/2;
     if(bottom.type == MODEL) bottomPoint += (top.location - bottom.location).unit()/2;
-    double r = (0.015 * (top.location - bottom.location).norm() * angleOfVectors(topPoint, bottomPoint)); // should be 0.0015 -> ha függőleges szorozzuk valamivel
+    double r = (0.03 * (topPoint - bottomPoint).norm() * (1 + angleOfVectors(topPoint-bottomPoint, Vec(0,0,1)))); // should be 0.0015
     std::vector<Vec> topTriangle, bottomTriangle;
     for(int i = 0; i < 3; ++i){
         Vec newPoint = rotateAround(Vec(r, 0.0, 0.0), Vec(0.0, 0.0, 1.0), i * 2 * M_PI / 3);
@@ -1215,15 +1237,15 @@ void MyViewer::addStrut(SupportPoint top, SupportPoint bottom){
         addFace(top.location, topTriangle[2], topTriangle[0]);
     } else addFace(topTriangle[0], topTriangle[1], topTriangle[2]);
     switch(bottom.type) {
-        case MODEL:
-            addFace(bottom.location, bottomTriangle[0], bottomTriangle[1]);
-            addFace(bottom.location, bottomTriangle[1], bottomTriangle[2]);
-            addFace(bottom.location, bottomTriangle[2], bottomTriangle[0]);
-            break;
-        case PLATE:
-            addFace(bottomTriangle[0], bottomTriangle[1], bottomTriangle[2]);
-            break;
-        default: break;
+    case MODEL:
+        addFace(bottom.location, bottomTriangle[0], bottomTriangle[1]);
+        addFace(bottom.location, bottomTriangle[1], bottomTriangle[2]);
+        addFace(bottom.location, bottomTriangle[2], bottomTriangle[0]);
+        break;
+    case PLATE:
+        addFace(bottomTriangle[0], bottomTriangle[1], bottomTriangle[2]);
+        break;
+    default: break;
     }
 }
 
