@@ -475,6 +475,8 @@ void MyViewer::draw() {
                     glColor3dv(meanMapColor(mesh.data(v).mean));
                 else if (visualization == Visualization::SLICING)
                     glTexCoord1d(mesh.point(v) | slicing_dir * slicing_scaling);
+                else if (mesh.data(v).isSupport)
+                    glColor3d(1.0, 0.5, 0.0);
                 glNormal3dv(mesh.normal(v).data());
                 glVertex3dv(mesh.point(v).data());
             }
@@ -1242,10 +1244,9 @@ void MyViewer::addStrut(SupportPoint top, SupportPoint bottom){
         addFace(bottom.location, bottomTriangle[1], bottomTriangle[2]);
         addFace(bottom.location, bottomTriangle[2], bottomTriangle[0]);
         break;
-    case PLATE:
+    default:
         addFace(bottomTriangle[0], bottomTriangle[1], bottomTriangle[2]);
         break;
-    default: break;
     }
 }
 
@@ -1253,6 +1254,9 @@ void MyViewer::addFace(Vec v1, Vec v2, Vec v3){
     MyMesh::VertexHandle vh1 = mesh.add_vertex(MyMesh::Point(v1.v_));
     MyMesh::VertexHandle vh2 = mesh.add_vertex(MyMesh::Point(v2.v_));
     MyMesh::VertexHandle vh3 = mesh.add_vertex(MyMesh::Point(v3.v_));
+    mesh.data(vh1).isSupport = true;
+    mesh.data(vh2).isSupport = true;
+    mesh.data(vh3).isSupport = true;
     std::vector<MyMesh::VertexHandle> faceVertices;
     faceVertices.push_back(vh1);
     faceVertices.push_back(vh2);

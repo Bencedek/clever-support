@@ -50,6 +50,7 @@ private:
         using Normal = OpenMesh::Vec3d;
         VertexTraits {
             double mean;              // approximated mean curvature
+            bool isSupport = false;   // model or support vertex
         };
     };
     using MyMesh = OpenMesh::TriMesh_ArrayKernelT<MyTraits>;
