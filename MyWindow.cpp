@@ -354,6 +354,7 @@ void MyWindow::setDiameterCoefficient() {
 
     sb->setDecimals(4);
     sb->setRange(0, 1);
+    sb->setSingleStep(0.001);
     sb->setValue(viewer->getDiameterCoefficient());
     connect(cancel, SIGNAL(pressed()), dlg.get(), SLOT(reject()));
     connect(ok,     SIGNAL(pressed()), dlg.get(), SLOT(accept()));

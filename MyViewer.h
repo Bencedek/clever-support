@@ -50,6 +50,8 @@ private:
         using Normal = OpenMesh::Vec3d;
         VertexTraits {
             double mean;              // approximated mean curvature
+        };
+        FaceTraits {
             bool isSupport = false;   // model or support vertex
         };
     };
