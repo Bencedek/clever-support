@@ -42,6 +42,14 @@ void MyViewer::setAngleLimit(double a) {
     angleLimit = a;
 }
 
+double MyViewer::getDiameterCoefficient() const {
+    return diameterCoefficient;
+}
+
+void MyViewer::setDiameterCoefficient(double k) {
+    diameterCoefficient = k;
+}
+
 void MyViewer::toggleCones() {
     showCones = !showCones;
 }

@@ -139,6 +139,7 @@ private:
 
     double gridDensity;
     double angleLimit;
+    double diameterCoefficient;
     bool showWhereSupportNeeded;
     bool showAllPoints;
     bool showCones;
@@ -154,6 +155,8 @@ public:
     inline void setGridDensity(double d);
     inline double getAngleLimit() const;
     inline void setAngleLimit(double a);
+    inline double getDiameterCoefficient() const;
+    inline void setDiameterCoefficient(double k);
     inline void toggleCones();
     inline void toggleTree();
     void colorFacesEdgesAndPoints();

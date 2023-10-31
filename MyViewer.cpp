@@ -34,7 +34,7 @@ MyViewer::MyViewer(QWidget *parent) :
     show_control_points(true), show_solid(true), show_wireframe(false),
     visualization(Visualization::PLAIN), slicing_dir(0, 0, 1), slicing_scaling(1),
     last_filename(""),
-    gridDensity(4.0), angleLimit(degToRad(60)), showWhereSupportNeeded(false), showAllPoints(false), showCones(false), showTree(false)
+    gridDensity(4.0), angleLimit(degToRad(60)), diameterCoefficient(0.03)/* should be 0.0015 as per Vanek (2014)*/, showWhereSupportNeeded(false), showAllPoints(false), showCones(false), showTree(false)
 {
     setSelectRegionWidth(10);
     setSelectRegionHeight(10);
@@ -1106,14 +1106,17 @@ Vec MyViewer::getClosestPointOnModel(Vec p){
     Vec closest;
     bool closestSet = false;
     for(auto f: mesh.faces()){
-        Vec projection = projectToTriangle(p, f);
-        if(projection.z < p.z
-            && angleOfVectors(projection - p, Vec(projection.x, projection.y, p.z) - p) > degToRad(90)-angleLimit
-            && (!closestSet
-                || (projection - p).norm() < (closest - p).norm())){
-            closest = projection;
-            closestSet = true;
-        }
+        //if(!closestSet || Vec(p-vertexToVec(*mesh.fv_iter(f))) * Vec(mesh.normal(f).data()) <= (closest - p).norm()){
+        //if(!closestSet || vertexToVec(*mesh.fv_iter(f)).z <= p.z ){
+            Vec projection = projectToTriangle(p, f);
+            if( projection.z < p.z
+                && angleOfVectors(projection - p, Vec(projection.x, projection.y, p.z) - p) > degToRad(90)-angleLimit
+                && (!closestSet
+                    || (projection - p).norm() < (closest - p).norm())){
+                closest = projection;
+                closestSet = true;
+            }
+        //}
     }
     if(closestSet) return closest;
     return p;
@@ -1220,7 +1223,7 @@ void MyViewer::addStrut(SupportPoint top, SupportPoint bottom){
     Vec bottomPoint = bottom.location;
     if(top.type == MODEL) topPoint += (bottom.location - top.location).unit()/2;
     if(bottom.type == MODEL) bottomPoint += (top.location - bottom.location).unit()/2;
-    double r = (0.03 * (topPoint - bottomPoint).norm() * (1 + angleOfVectors(topPoint-bottomPoint, Vec(0,0,1)))); // should be 0.0015
+    double r = (diameterCoefficient * (topPoint - bottomPoint).norm() * (1 + angleOfVectors(topPoint-bottomPoint, Vec(0,0,1))));
     std::vector<Vec> topTriangle, bottomTriangle;
     for(int i = 0; i < 3; ++i){
         Vec newPoint = rotateAround(Vec(r, 0.0, 0.0), Vec(0.0, 0.0, 1.0), i * 2 * M_PI / 3);

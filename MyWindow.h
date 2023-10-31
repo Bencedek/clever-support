@@ -22,8 +22,9 @@ private slots:
     void setCutoff();
     void setRange();
     void setSlicing();
-    void setGrid();
     void setAngleLimit();
+    void setGrid();
+    void setDiameterCoefficient();
     void setFavoriteModel();
     void toggleCones();
     void calculateTreePoints();

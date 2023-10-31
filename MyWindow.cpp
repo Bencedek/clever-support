@@ -60,6 +60,9 @@ MyWindow::MyWindow(QApplication *parent) :
     auto gridAction = new QAction(tr("Set support &grid density"), this);
     connect(gridAction, SIGNAL(triggered()), this, SLOT(setGrid()));
 
+    auto coefficientAction = new QAction(tr("Set &diameter coefficient"), this);
+    connect(coefficientAction, SIGNAL(triggered()), this, SLOT(setDiameterCoefficient()));
+
     auto toggleConesAction = new QAction(tr("Toggle cones"), this);
     connect(toggleConesAction, SIGNAL(triggered()), this, SLOT(toggleCones()));
 
@@ -89,6 +92,7 @@ MyWindow::MyWindow(QApplication *parent) :
     auto supportMenu = menuBar()->addMenu(tr("&Support settings"));
     supportMenu->addAction(angleLimitAction);
     supportMenu->addAction(gridAction);
+    supportMenu->addAction(coefficientAction);
     supportMenu->addAction(toggleConesAction);
     supportMenu->addAction(calculateTreeAction);
     supportMenu->addAction(treePointsAction);
@@ -270,6 +274,40 @@ void MyWindow::setSlicing() {
     }
 }
 
+void MyWindow::setAngleLimit() {
+    auto dlg = std::make_unique<QDialog>(this);
+    auto *hb1    = new QHBoxLayout,
+        *hb2    = new QHBoxLayout;
+    auto *vb     = new QVBoxLayout;
+    auto *text   = new QLabel(tr("Angle overhang limit (deg):"));
+    auto *sb     = new QDoubleSpinBox;
+    auto *cancel = new QPushButton(tr("Cancel"));
+    auto *ok     = new QPushButton(tr("Ok"));
+
+    sb->setDecimals(1);
+    sb->setRange(0, 90);
+    sb->setSingleStep(1);
+    sb->setValue(viewer->getAngleLimit() * 180 / M_PI);
+    connect(cancel, SIGNAL(pressed()), dlg.get(), SLOT(reject()));
+    connect(ok,     SIGNAL(pressed()), dlg.get(), SLOT(accept()));
+    ok->setDefault(true);
+
+    hb1->addWidget(text);
+    hb1->addWidget(sb);
+    hb2->addWidget(cancel);
+    hb2->addWidget(ok);
+    vb->addLayout(hb1);
+    vb->addLayout(hb2);
+
+    dlg->setWindowTitle(tr("Set angle overhang limit"));
+    dlg->setLayout(vb);
+
+    if(dlg->exec() == QDialog::Accepted) {
+        viewer->setAngleLimit(sb->value() * M_PI / 180);
+        viewer->update();
+    }
+}
+
 void MyWindow::setGrid() {
     auto dlg = std::make_unique<QDialog>(this);
     auto *hb1    = new QHBoxLayout,
@@ -304,20 +342,19 @@ void MyWindow::setGrid() {
     }
 }
 
-void MyWindow::setAngleLimit() {
+void MyWindow::setDiameterCoefficient() {
     auto dlg = std::make_unique<QDialog>(this);
     auto *hb1    = new QHBoxLayout,
         *hb2    = new QHBoxLayout;
     auto *vb     = new QVBoxLayout;
-    auto *text   = new QLabel(tr("Angle overhang limit (deg):"));
+    auto *text   = new QLabel(tr("Diameter coefficient:"));
     auto *sb     = new QDoubleSpinBox;
     auto *cancel = new QPushButton(tr("Cancel"));
     auto *ok     = new QPushButton(tr("Ok"));
 
-    sb->setDecimals(1);
-    sb->setRange(0, 90);
-    sb->setSingleStep(1);
-    sb->setValue(viewer->getAngleLimit() * 180 / M_PI);
+    sb->setDecimals(4);
+    sb->setRange(0, 1);
+    sb->setValue(viewer->getDiameterCoefficient());
     connect(cancel, SIGNAL(pressed()), dlg.get(), SLOT(reject()));
     connect(ok,     SIGNAL(pressed()), dlg.get(), SLOT(accept()));
     ok->setDefault(true);
@@ -329,11 +366,11 @@ void MyWindow::setAngleLimit() {
     vb->addLayout(hb1);
     vb->addLayout(hb2);
 
-    dlg->setWindowTitle(tr("Set angle overhang limit"));
+    dlg->setWindowTitle(tr("Set diameter coefficient"));
     dlg->setLayout(vb);
 
     if(dlg->exec() == QDialog::Accepted) {
-        viewer->setAngleLimit(sb->value() * M_PI / 180);
+        viewer->setDiameterCoefficient(sb->value());
         viewer->update();
     }
 }
