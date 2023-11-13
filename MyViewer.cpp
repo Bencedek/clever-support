@@ -8,6 +8,7 @@
 #include <QtGui/QKeyEvent>
 
 #include <OpenMesh/Core/IO/MeshIO.hh>
+#include <OpenMesh/Core/IO/writer/STLWriter.hh>
 #include <OpenMesh/Tools/Smoother/JacobiLaplaceSmootherT.hh>
 
 #ifdef BETTER_MEAN_CURVATURE
@@ -28,6 +29,9 @@
 #define GL_BGRA 0x80E1
 #endif
 
+#include <QDebug>
+int cnt = 0;
+
 MyViewer::MyViewer(QWidget *parent) :
     QGLViewer(parent), model_type(ModelType::NONE),
     mean_min(0.0), mean_max(0.0), cutoff_ratio(0.05),
@@ -39,6 +43,8 @@ MyViewer::MyViewer(QWidget *parent) :
     setSelectRegionWidth(10);
     setSelectRegionHeight(10);
     axes.shown = false;
+
+    supportMesh.request_face_normals(); supportMesh.request_vertex_normals();
 }
 
 MyViewer::~MyViewer() {
@@ -364,6 +370,7 @@ void MyViewer::setupCamera() {
 }
 
 bool MyViewer::openMesh(const std::string &filename, bool update_view) {
+    supportMesh.clear();
     if (!OpenMesh::IO::read_mesh(mesh, filename) || mesh.n_vertices() == 0)
         return false;
     model_type = ModelType::MESH;
@@ -396,10 +403,31 @@ bool MyViewer::openBezier(const std::string &filename, bool update_view) {
     return true;
 }
 
-bool MyViewer::saveBezier(const std::string &filename) {
-    if (model_type != ModelType::BEZIER_SURFACE)
-        return false;
+bool MyViewer::saveMesh(const std::string &filename) {
+    if (model_type == ModelType::BEZIER_SURFACE)
+        return saveBezier(filename);
+    MyMesh combined = mesh;
 
+    size_t numVerticesInMesh = mesh.n_vertices();
+    for (MyMesh::VertexIter v_it = supportMesh.vertices_begin(); v_it != supportMesh.vertices_end(); ++v_it) {
+        MyMesh::Point p = supportMesh.point(*v_it);
+        combined.add_vertex(p);
+    }
+
+    for (MyMesh::FaceIter f_it = supportMesh.faces_begin(); f_it != supportMesh.faces_end(); ++f_it) {
+        std::vector<MyMesh::VertexHandle> faceVertices;
+        for (MyMesh::FaceVertexIter fv_it = supportMesh.fv_iter(*f_it); fv_it.is_valid(); ++fv_it) {
+            MyMesh::VertexHandle v = *fv_it;
+            int newIndex = combined.vertex_handle(v.idx()).idx() + numVerticesInMesh;
+            faceVertices.push_back(MyMesh::VertexHandle(newIndex));
+        }
+        combined.add_face(faceVertices);
+    }
+
+    return OpenMesh::IO::write_mesh(combined, filename);
+}
+
+bool MyViewer::saveBezier(const std::string &filename) {
     try {
         std::ofstream f(filename.c_str());
         f.exceptions(std::ios::failbit | std::ios::badbit);
@@ -475,8 +503,6 @@ void MyViewer::draw() {
                     glColor3dv(meanMapColor(mesh.data(v).mean));
                 else if (visualization == Visualization::SLICING)
                     glTexCoord1d(mesh.point(v) | slicing_dir * slicing_scaling);
-                else if (mesh.data(v).isSupport)
-                    glColor3d(1.0, 0.5, 0.0);
                 glNormal3dv(mesh.normal(v).data());
                 glVertex3dv(mesh.point(v).data());
             }
@@ -514,6 +540,17 @@ void MyViewer::draw() {
     }
     if(showTree){
         drawTree();
+    }
+    for (auto f : supportMesh.faces()) {
+        glDisable(GL_LIGHTING);
+        glColor3d(1.0, 0.5, 0.0);
+        glBegin(GL_POLYGON);
+        for (auto v : supportMesh.fv_range(f)) {
+            glNormal3dv(supportMesh.normal(v).data());
+            glVertex3dv(supportMesh.point(v).data());
+        }
+        glEnd();
+        glEnable(GL_LIGHTING);
     }
 
     if (axes.shown)
@@ -1034,6 +1071,7 @@ void MyViewer::calculateSupportTreePoints(){
     double lowestZ;
     if(!pointsToSupport.empty()) lowestZ  = pointsToSupport.back().location.z;
     double fullSize = pointsToSupport.size();
+    qDebug() << "Alátámasztandó pontok: " << fullSize;
     emit startComputation(tr("Calculating tree points..."));
 
     while(!pointsToSupport.empty()){
@@ -1075,6 +1113,7 @@ void MyViewer::calculateSupportTreePoints(){
         }
         pointsToSupport.pop_front();
     }
+    qDebug() << "Projekció meghívva: " << cnt;
     emit endComputation();
     update();
 }
@@ -1109,6 +1148,7 @@ Vec MyViewer::getClosestPointOnModel(Vec p){
         //if(!closestSet || Vec(p-vertexToVec(*mesh.fv_iter(f))) * Vec(mesh.normal(f).data()) <= (closest - p).norm()){
         //if(!closestSet || vertexToVec(*mesh.fv_iter(f)).z <= p.z ){
             Vec projection = projectToTriangle(p, f);
+            cnt++;
             if( projection.z < p.z
                 && angleOfVectors(projection - p, Vec(projection.x, projection.y, p.z) - p) > degToRad(90)-angleLimit
                 && (!closestSet
@@ -1207,6 +1247,7 @@ void MyViewer::addTreeGeometry(){
     showWhereSupportNeeded = false;
     update();
     if(treePoints.empty()) calculateSupportTreePoints();
+    supportMesh.clear();
     emit startComputation(tr("Generating tree..."));
     double counter = 0.0;
     for(auto t : treePoints){
@@ -1214,15 +1255,17 @@ void MyViewer::addTreeGeometry(){
         if(t.point.location != t.nextPoint.location) addStrut(t.point, t.nextPoint);
         counter += 1.0;
     }
-    mesh.update_normals();
+    supportMesh.update_normals();
     emit endComputation();
 }
+
+
 
 void MyViewer::addStrut(SupportPoint top, SupportPoint bottom){
     Vec topPoint = top.location;
     Vec bottomPoint = bottom.location;
-    if(top.type == MODEL) topPoint += (bottom.location - top.location).unit()/2;
-    if(bottom.type == MODEL) bottomPoint += (top.location - bottom.location).unit()/2;
+    if(top.type == MODEL) topPoint += (bottomPoint - topPoint).unit()/2;
+    if(bottom.type == MODEL) bottomPoint += (topPoint - bottomPoint).unit()/2;
     double r = (diameterCoefficient * (topPoint - bottomPoint).norm() * (1 + angleOfVectors(topPoint-bottomPoint, Vec(0,0,1))));
     std::vector<Vec> topTriangle, bottomTriangle;
     for(int i = 0; i < 3; ++i){
@@ -1243,28 +1286,25 @@ void MyViewer::addStrut(SupportPoint top, SupportPoint bottom){
     } else addFace(topTriangle[0], topTriangle[1], topTriangle[2]);
     switch(bottom.type) {
     case MODEL:
-        addFace(bottom.location, bottomTriangle[0], bottomTriangle[1]);
-        addFace(bottom.location, bottomTriangle[1], bottomTriangle[2]);
-        addFace(bottom.location, bottomTriangle[2], bottomTriangle[0]);
+        addFace(bottomTriangle[1], bottomTriangle[0], bottom.location);
+        addFace(bottomTriangle[2], bottomTriangle[1], bottom.location);
+        addFace(bottomTriangle[0], bottomTriangle[2], bottom.location);
         break;
     default:
-        addFace(bottomTriangle[0], bottomTriangle[1], bottomTriangle[2]);
+        addFace(bottomTriangle[2], bottomTriangle[1], bottomTriangle[0]);
         break;
     }
 }
 
 void MyViewer::addFace(Vec v1, Vec v2, Vec v3){
-    MyMesh::VertexHandle vh1 = mesh.add_vertex(MyMesh::Point(v1.v_));
-    MyMesh::VertexHandle vh2 = mesh.add_vertex(MyMesh::Point(v2.v_));
-    MyMesh::VertexHandle vh3 = mesh.add_vertex(MyMesh::Point(v3.v_));
-    mesh.data(vh1).isSupport = true;
-    mesh.data(vh2).isSupport = true;
-    mesh.data(vh3).isSupport = true;
+    MyMesh::VertexHandle vh1 = supportMesh.add_vertex(MyMesh::Point(v1.v_));
+    MyMesh::VertexHandle vh2 = supportMesh.add_vertex(MyMesh::Point(v2.v_));
+    MyMesh::VertexHandle vh3 = supportMesh.add_vertex(MyMesh::Point(v3.v_));
     std::vector<MyMesh::VertexHandle> faceVertices;
     faceVertices.push_back(vh1);
     faceVertices.push_back(vh2);
     faceVertices.push_back(vh3);
-    mesh.add_face(faceVertices);
+    supportMesh.add_face(faceVertices);
 }
 
 double MyViewer::degToRad(double deg){
