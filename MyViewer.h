@@ -28,6 +28,7 @@ public:
     inline void setSlicingScaling(double scaling);
     bool openMesh(const std::string &filename, bool update_view = true);
     bool openBezier(const std::string &filename, bool update_view = true);
+    bool saveMesh(const std::string &filename);
     bool saveBezier(const std::string &filename);
 
 signals:
@@ -50,9 +51,6 @@ private:
         using Normal = OpenMesh::Vec3d;
         VertexTraits {
             double mean;              // approximated mean curvature
-        };
-        FaceTraits {
-            bool isSupport = false;   // model or support vertex
         };
     };
     using MyMesh = OpenMesh::TriMesh_ArrayKernelT<MyTraits>;
@@ -139,6 +137,7 @@ private:
         TreePoint(SupportPoint point, SupportPoint nextPoint): point(point), nextPoint(nextPoint){}
     };
 
+    MyMesh supportMesh;
     double gridDensity;
     double angleLimit;
     double diameterCoefficient;

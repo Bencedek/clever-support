@@ -30,8 +30,9 @@ MyWindow::MyWindow(QApplication *parent) :
     connect(openAction, SIGNAL(triggered()), this, SLOT(open()));
 
     auto saveAction = new QAction(tr("&Save as.."), this);
-    saveAction->setStatusTip(tr("Save a Bézier surface to a file"));
-        connect(saveAction, SIGNAL(triggered()), this, SLOT(save()));
+    saveAction->setShortcut(tr("Ctrl+Alt+S"));
+    saveAction->setStatusTip(tr("Save to a file"));
+    connect(saveAction, SIGNAL(triggered()), this, SLOT(save()));
 
     auto quitAction = new QAction(tr("&Quit"), this);
     quitAction->setShortcut(tr("Ctrl+Q"));
@@ -129,12 +130,12 @@ void MyWindow::open() {
 void MyWindow::save() {
     auto filename =
         QFileDialog::getSaveFileName(this, tr("Save File"), last_directory,
-                                     tr("Bézier surface (*.bzr);;"));
+                                     tr("Bézier surface (*.bzr);;STL file (*.stl)"));
         if(filename.isEmpty())
         return;
     last_directory = QFileInfo(filename).absolutePath();
 
-    if (!viewer->saveBezier(filename.toUtf8().data()))
+    if (!viewer->saveMesh(filename.toUtf8().data()))
         QMessageBox::warning(this, tr("Cannot save file"),
                              tr("Could not save file: ") + filename + ".");
 }
