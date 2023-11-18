@@ -30,7 +30,6 @@
 #endif
 
 #include <QDebug>
-int cnt = 0;
 
 MyViewer::MyViewer(QWidget *parent) :
     QGLViewer(parent), model_type(ModelType::NONE),
@@ -408,6 +407,7 @@ bool MyViewer::saveMesh(const std::string &filename) {
         return saveBezier(filename);
     MyMesh combined = mesh;
 
+    emit startComputation(tr("Exporting file"));
     size_t numVerticesInMesh = mesh.n_vertices();
     for (MyMesh::VertexIter v_it = supportMesh.vertices_begin(); v_it != supportMesh.vertices_end(); ++v_it) {
         MyMesh::Point p = supportMesh.point(*v_it);
@@ -423,6 +423,7 @@ bool MyViewer::saveMesh(const std::string &filename) {
         }
         combined.add_face(faceVertices);
     }
+    emit endComputation();
 
     return OpenMesh::IO::write_mesh(combined, filename);
 }
@@ -549,6 +550,7 @@ void MyViewer::draw() {
             glNormal3dv(supportMesh.normal(v).data());
             glVertex3dv(supportMesh.point(v).data());
         }
+
         glEnd();
         glEnable(GL_LIGHTING);
     }
@@ -1071,7 +1073,6 @@ void MyViewer::calculateSupportTreePoints(){
     double lowestZ;
     if(!pointsToSupport.empty()) lowestZ  = pointsToSupport.back().location.z;
     double fullSize = pointsToSupport.size();
-    qDebug() << "Alátámasztandó pontok: " << fullSize;
     emit startComputation(tr("Calculating tree points..."));
 
     while(!pointsToSupport.empty()){
@@ -1113,7 +1114,6 @@ void MyViewer::calculateSupportTreePoints(){
         }
         pointsToSupport.pop_front();
     }
-    qDebug() << "Projekció meghívva: " << cnt;
     emit endComputation();
     update();
 }
@@ -1124,7 +1124,8 @@ MyViewer::SupportPoint MyViewer::getClosestPointFromPoints(SupportPoint p){
     else {
         SupportPoint closest = pointsToSupport[1];
         for(size_t i = 1; i < pointsToSupport.size(); ++i){
-            if((pointsToSupport[i].location - p.location).norm() < (closest.location - p.location).norm()
+            if( pointsToSupport[i].type != locationType::MODEL
+                && (pointsToSupport[i].location - p.location).norm() < (closest.location - p.location).norm()
                 && angleOfVectors(pointsToSupport[i].location - p.location, Vec(pointsToSupport[i].location.x, pointsToSupport[i].location.y, p.location.z) - p.location) < degToRad(90) - angleLimit)
                 closest = pointsToSupport[i];
         }
@@ -1145,10 +1146,7 @@ Vec MyViewer::getClosestPointOnModel(Vec p){
     Vec closest;
     bool closestSet = false;
     for(auto f: mesh.faces()){
-        //if(!closestSet || Vec(p-vertexToVec(*mesh.fv_iter(f))) * Vec(mesh.normal(f).data()) <= (closest - p).norm()){
-        //if(!closestSet || vertexToVec(*mesh.fv_iter(f)).z <= p.z ){
             Vec projection = projectToTriangle(p, f);
-            cnt++;
             if( projection.z < p.z
                 && angleOfVectors(projection - p, Vec(projection.x, projection.y, p.z) - p) > degToRad(90)-angleLimit
                 && (!closestSet
@@ -1156,7 +1154,6 @@ Vec MyViewer::getClosestPointOnModel(Vec p){
                 closest = projection;
                 closestSet = true;
             }
-        //}
     }
     if(closestSet) return closest;
     return p;
@@ -1264,8 +1261,8 @@ void MyViewer::addTreeGeometry(){
 void MyViewer::addStrut(SupportPoint top, SupportPoint bottom){
     Vec topPoint = top.location;
     Vec bottomPoint = bottom.location;
-    if(top.type == MODEL) topPoint += (bottomPoint - topPoint).unit()/2;
-    if(bottom.type == MODEL) bottomPoint += (topPoint - bottomPoint).unit()/2;
+    if(top.type == MODEL) topPoint += (bottomPoint - topPoint)/10;
+    if(bottom.type == MODEL) bottomPoint += (topPoint - bottomPoint)/10;
     double r = (diameterCoefficient * (topPoint - bottomPoint).norm() * (1 + angleOfVectors(topPoint-bottomPoint, Vec(0,0,1))));
     std::vector<Vec> topTriangle, bottomTriangle;
     for(int i = 0; i < 3; ++i){
