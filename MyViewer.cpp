@@ -1124,8 +1124,7 @@ MyViewer::SupportPoint MyViewer::getClosestPointFromPoints(SupportPoint p){
     else {
         SupportPoint closest = pointsToSupport[1];
         for(size_t i = 1; i < pointsToSupport.size(); ++i){
-            if( pointsToSupport[i].type != locationType::MODEL
-                && (pointsToSupport[i].location - p.location).norm() < (closest.location - p.location).norm()
+            if( (pointsToSupport[i].location - p.location).norm() < (closest.location - p.location).norm()
                 && angleOfVectors(pointsToSupport[i].location - p.location, Vec(pointsToSupport[i].location.x, pointsToSupport[i].location.y, p.location.z) - p.location) < degToRad(90) - angleLimit)
                 closest = pointsToSupport[i];
         }
