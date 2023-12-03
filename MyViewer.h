@@ -120,8 +120,9 @@ private:
     struct SupportPoint{
         Vec location;
         locationType type;
+        Vec normal;
 
-        SupportPoint(Vec location, enum locationType type): location(location), type(type){}
+        SupportPoint(Vec location, enum locationType type, Vec normal = Vec()): location(location), type(type), normal(normal){}
 
         bool operator==(const SupportPoint& other) const {
             // Define the equality logic here
@@ -164,14 +165,14 @@ public:
     void getElementsThatNeedSupport();
     void showAllPointsToSupport();
     void calculatePointsToSupport();
-    void generateEdgePoints(Vec A, Vec B, int density);
+    void generateEdgePoints(Vec A, Vec B, int density, Vec normal);
     void generateFacePoints(OpenMesh::SmartFaceHandle f);
     void generateCones();
     void drawTree();
     void calculateSupportTreePoints();
     SupportPoint getClosestPointFromPoints(SupportPoint p);
     Vec getCommonSupportPoint(Vec p1, Vec p2);
-    Vec getClosestPointOnModel(Vec p);
+    SupportPoint getClosestPointOnModel(SupportPoint p);
     Vec projectToTriangle(const Vec &p, const OpenMesh::SmartFaceHandle &f);
     void addTreeGeometry();
     void addStrut(SupportPoint top, SupportPoint bottom);
