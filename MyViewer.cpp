@@ -1112,9 +1112,10 @@ void MyViewer::calculateSupportTreePoints(){
                 pointsToSupport.erase(std::find(pointsToSupport.begin(), pointsToSupport.end(), closestFromPoints));
                 pointsToSupport.push_back(SupportPoint(common, COMMON));
             } else if (closest == closestOnModel.location && closest != p.location){
-                SupportPoint midpoint(closestOnModel.location - (closestOnModel.location-p.location).unit(), COMMON);
+                /*SupportPoint midpoint(closestOnModel.location - (closestOnModel.location-p.location).unit(), COMMON);
                 treePoints.push_back(TreePoint(p, midpoint));
-                treePoints.push_back(TreePoint(midpoint, closestOnModel));
+                treePoints.push_back(TreePoint(midpoint, closestOnModel));*/
+                treePoints.push_back(TreePoint(p, closestOnModel));
             } else {
                 treePoints.push_back(TreePoint(p, SupportPoint(closest, PLATE)));
             }
@@ -1277,47 +1278,54 @@ void MyViewer::addStrut(SupportPoint top, SupportPoint bottom){
     std::vector<Vec> topTriangle, bottomTriangle;
     for(int i = 0; i < 3; ++i){
         Vec newPoint = rotateAround(Vec(r, 0.0, 0.0), Vec(0.0, 0.0, 1.0), i * 2 * M_PI / 3);
-        if(top.type == MODEL){
+        /*if(top.type == MODEL){
             Vec perp = top.normal ^ Vec(1.0, 0.0, 0.0);
             Vec topConnectionPoint = rotateAround(perp, top.normal, i * 2 * M_PI / 3) * r/2;
             topTriangle.push_back(topPoint + topConnectionPoint);
-        } else {
+        } else {*/
             topTriangle.push_back(topPoint + newPoint);
-        }
+        //}
         if(bottom.type == MODEL){
-            Vec perp = bottom.normal ^ Vec(1.0, 0.0, 0.0);
-            Vec bottomConnectionPoint = rotateAround(perp, bottom.normal, i * 2 * M_PI / 3) * r/2;
+            Vec perp = bottom.normal.unit() * r ^ Vec(1.0, 0.0, 0.0);
+            double distance = r / perp.norm();
+            Vec bottomConnectionPoint = rotateAround(perp * distance, bottom.normal, i * 2 * M_PI / 3);
             bottomTriangle.push_back(bottomPoint + bottomConnectionPoint);
         } else {
             bottomTriangle.push_back(bottomPoint + newPoint);
         }
     }
 
-    addFace(topTriangle[0], topTriangle[1], topTriangle[2]);
-    addFace(bottomTriangle[2], bottomTriangle[1], bottomTriangle[0]);
 
     if (top.type == MODEL){
-        addFace(topTriangle[0], bottomTriangle[2], bottomTriangle[0]);
+        /*addFace(topTriangle[0], bottomTriangle[2], bottomTriangle[0]);
         addFace(topTriangle[0], bottomTriangle[0], topTriangle[2]);
         addFace(topTriangle[2], bottomTriangle[0], bottomTriangle[1]);
         addFace(topTriangle[2], bottomTriangle[1], topTriangle[1]);
         addFace(topTriangle[1], bottomTriangle[1], bottomTriangle[2]);
-        addFace(topTriangle[1], bottomTriangle[2], topTriangle[0]);
-    } else if (bottom.type == MODEL){
-        addFace(topTriangle[0], bottomTriangle[2], bottomTriangle[0]);
-        addFace(topTriangle[0], bottomTriangle[0], topTriangle[1]);
-        addFace(topTriangle[1], bottomTriangle[0], bottomTriangle[1]);
-        addFace(topTriangle[1], bottomTriangle[1], topTriangle[2]);
-        addFace(topTriangle[2], bottomTriangle[1], bottomTriangle[2]);
-        addFace(topTriangle[2], bottomTriangle[2], topTriangle[0]);
-    }
-    else {
-        addFace(topTriangle[0], bottomTriangle[0], bottomTriangle[1]);
-        addFace(topTriangle[0], bottomTriangle[1], topTriangle[1]);
-        addFace(topTriangle[1], bottomTriangle[1], bottomTriangle[2]);
-        addFace(topTriangle[1], bottomTriangle[2], topTriangle[2]);
-        addFace(topTriangle[2], bottomTriangle[2], bottomTriangle[0]);
-        addFace(topTriangle[2], bottomTriangle[0], topTriangle[0]);
+        addFace(topTriangle[1], bottomTriangle[2], topTriangle[0]);*/
+        addFace(top.location, bottomTriangle[0], bottomTriangle[1]);
+        addFace(top.location, bottomTriangle[1], bottomTriangle[2]);
+        addFace(top.location, bottomTriangle[2], bottomTriangle[0]);
+    } else {
+        addFace(topTriangle[0], topTriangle[1], topTriangle[2]);
+
+        if (bottom.type == MODEL){
+            addFace(topTriangle[0], bottomTriangle[1], bottomTriangle[2]);
+            addFace(topTriangle[0], bottomTriangle[2], topTriangle[1]);
+            addFace(topTriangle[1], bottomTriangle[2], bottomTriangle[0]);
+            addFace(topTriangle[1], bottomTriangle[0], topTriangle[2]);
+            addFace(topTriangle[2], bottomTriangle[0], bottomTriangle[1]);
+            addFace(topTriangle[2], bottomTriangle[1], topTriangle[0]);
+        }
+        else {
+            addFace(topTriangle[0], bottomTriangle[0], bottomTriangle[1]);
+            addFace(topTriangle[0], bottomTriangle[1], topTriangle[1]);
+            addFace(topTriangle[1], bottomTriangle[1], bottomTriangle[2]);
+            addFace(topTriangle[1], bottomTriangle[2], topTriangle[2]);
+            addFace(topTriangle[2], bottomTriangle[2], bottomTriangle[0]);
+            addFace(topTriangle[2], bottomTriangle[0], topTriangle[0]);
+            addFace(bottomTriangle[2], bottomTriangle[1], bottomTriangle[0]);
+        }
     }
 }
 
