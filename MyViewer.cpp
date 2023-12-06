@@ -37,7 +37,7 @@ MyViewer::MyViewer(QWidget *parent) :
     show_control_points(true), show_solid(true), show_wireframe(false),
     visualization(Visualization::PLAIN), slicing_dir(0, 0, 1), slicing_scaling(1),
     last_filename(""),
-    gridDensity(4.0), angleLimit(degToRad(60)), diameterCoefficient(0.05)/* should be 0.0015 as per Vanek (2014)*/, showWhereSupportNeeded(false), showAllPoints(false), showCones(false), showTree(false)
+    gridDensity(4.0), angleLimit(degToRad(60)), diameterCoefficient(0.07)/* should be 0.0015 as per Vanek (2014)*/, showWhereSupportNeeded(false), showAllPoints(false), showCones(false), showTree(false)
 {
     setSelectRegionWidth(10);
     setSelectRegionHeight(10);
@@ -543,7 +543,6 @@ void MyViewer::draw() {
         drawTree();
     }
     for (auto f : supportMesh.faces()) {
-        glDisable(GL_LIGHTING);
         glColor3d(1.0, 0.5, 0.0);
         glBegin(GL_POLYGON);
         for (auto v : supportMesh.fv_range(f)) {
@@ -552,7 +551,6 @@ void MyViewer::draw() {
         }
 
         glEnd();
-        glEnable(GL_LIGHTING);
     }
 
     if (axes.shown)
@@ -956,9 +954,10 @@ void MyViewer::getElementsThatNeedSupport(){
                 equals.push_back(vn);
             }
         }
-        if (lowestOfNeighbors == &v){
-            if (equals.empty())
+        if (lowestOfNeighbors == &v && Vec(mesh.normal(v).data()).z < 0){
+            if (equals.empty()){
                 verticesToSupport.push_back(v);
+            }
             else if (equals.size() == 1){
                 for (auto e : mesh.edges()){
                     if ((e.v0() == v && e.v1() == equals.back()) || (e.v1() == v && e.v0() == equals.back())){
@@ -1274,7 +1273,7 @@ void MyViewer::addStrut(SupportPoint top, SupportPoint bottom){
     double length = (top.location - bottom.location).norm();
     double r = (diameterCoefficient * length * (angleOfVectors(top.location - bottom.location, Vec(0,0,1)) == 0 ? 1 : angleOfVectors(top.location - bottom.location, Vec(0,0,1))));
     //double r = (diameterCoefficient * (topPoint - bottomPoint).norm() * (1 - angleOfVectors(topPoint-bottomPoint, Vec(0,0,1))));
-    if (r < 0.5) r = 0.5;
+    if (r < 1) r = 1;
     std::vector<Vec> topTriangle, bottomTriangle;
     for(int i = 0; i < 3; ++i){
         Vec newPoint = rotateAround(Vec(r, 0.0, 0.0), Vec(0.0, 0.0, 1.0), i * 2 * M_PI / 3);
